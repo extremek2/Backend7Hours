@@ -18,18 +18,36 @@ done
 echo "✅ MySQL is up!"
 
 # 2️⃣ 마이그레이션
-echo "Applying database migrations..."
-python manage.py migrate --noinput
+if [ "$RUN_MIGRATION" = "true" ]; then
+    echo "Applying database migrations..."
+    python manage.py migrate --noinput
+fi
 
 # 3️⃣ 개발 환경일 때만 슈퍼유저 자동 생성
-if [ "$DJANGO_ENV" != "prod" ]; then
-  echo "👤 Creating superuser if not exists..."
+if [ "$CREATE_SUPERUSER" = "true" ] && [ "$DJANGO_ENV" != "prod" ]; then
+    echo "👤 Creating superuser if not exists..."
+    python manage.py createsuperuser \
+      --username "$DJANGO_SUPERUSER_USERNAME" \
+      --email "$DJANGO_SUPERUSER_EMAIL" \
+      --noinput || true
+      
+  # 비밀번호 설정
   python manage.py shell <<EOF
 from django.contrib.auth import get_user_model
+import os
+
 User = get_user_model()
-if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@example.com', 'admin1234')
+
+username = os.environ.get('DJANGO_SUPERUSER_USERNAME')
+password = os.environ.get('DJANGO_SUPERUSER_PASSWORD')
+
+user = User.objects.filter(username=username).first()
+if user and not user.check_password(password):
+    user.set_password(password)
+    user.save()
+    print("✅ Admin password set 👌")
 EOF
+
 fi
 
 # 4️⃣ 서버 실행
