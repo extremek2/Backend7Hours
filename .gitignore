@@ -13,7 +13,7 @@ staticfiles/
 # Environment files
 .env
 .env.*
-!.env.example
+!.env.examplecd
 
 # Docker
 /db/data/
