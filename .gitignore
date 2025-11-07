@@ -13,7 +13,7 @@ staticfiles/
 # Environment files
 .env
 .env.*
-!.env.examplecd
+!.env.example
 
 # Docker
 /db/data/
@@ -24,3 +24,4 @@ staticfiles/
 .idea/
 .DS_Store
 venv/
+.venv/
