@@ -24,11 +24,6 @@ echo "📦 Installing system package for ${DB_ENGINE}: ${DB_PKG}"
 # 시스템 패키지 설치
 apt-get update -qq && apt-get install -y ${DB_PKG} && rm -rf /var/lib/apt/lists/*
 
-# PostGIS 확장 활성화 시 추가 설치
-if [ "$ENABLE_POSTGIS" = "true" ]; then
-  echo "🗺️ Installing PostGIS dependencies..."
-  apt-get install -y ${DB_PKG_postgis}
-fi
 
 # Python 패키지 설치
 if [ -n "$DB_REQS" ]; then

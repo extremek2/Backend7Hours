@@ -1,6 +1,11 @@
 from rest_framework import generics, permissions
-from .models import Pet, PetBreed
-from .serializers import PetSerializer, PetBreedSerializer
+from .models import Pet, PetBreed, PetHistory, PetCheckup
+from .serializers import (
+    PetSerializer, 
+    PetBreedSerializer,
+    PetHistorySerializer,
+    PetCheckupSerializer,
+)
 from .permissions import IsOwnerOrReadOnly # 곧 정의할 커스텀 권한
 
 
@@ -38,3 +43,75 @@ class PetBreedListView(generics.ListAPIView):
     serializer_class = PetBreedSerializer
     # 품종 목록은 로그인 없이도 볼 수 있도록 허용합니다.
     permission_classes = [permissions.AllowAny]
+    
+    
+# 히스토리 전체 항목
+class PetHistoryListCreateView(generics.ListCreateAPIView):
+    serializer_class = PetHistorySerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        """
+        특정 pet_id 하위의 히스토리만 조회
+        """
+        pet_id = self.kwargs.get('pet_id')
+        if not pet_id:
+            return PetHistory.objects.none()
+
+        # 본인 반려견인지 검사
+        if not self.request.user.is_authenticated:
+            return PetHistory.objects.none()
+
+        return PetHistory.objects.filter(
+            pet__id=pet_id,
+            pet__owner=self.request.user
+        ).order_by('-event_date')
+
+    def perform_create(self, serializer):
+        pet_id = self.kwargs.get('pet_id')
+        try:
+            pet = Pet.objects.get(id=pet_id, owner=self.request.user)
+        except Pet.DoesNotExist:
+            raise PermissionError("해당 반려견에 대한 권한이 없습니다.")
+
+        serializer.save(pet=pet)
+
+
+class PetHistoryRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = PetHistory.objects.all()
+    serializer_class = PetHistorySerializer
+    permission_classes = [IsOwnerOrReadOnly]
+    
+
+# 히스토리 세부 항목 (건강검진)
+class PetCheckupListCreateView(generics.ListCreateAPIView):
+    serializer_class = PetCheckupSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        """
+        특정 반려견의 건강검진만 필터링
+        """
+        pet_id = self.kwargs.get('pet_id')
+        if not pet_id or not self.request.user.is_authenticated:
+            return PetCheckup.objects.none()
+
+        return PetCheckup.objects.filter(
+            pet__id=pet_id,
+            pet__owner=self.request.user
+        ).order_by('-checkup_date')
+
+    def perform_create(self, serializer):
+        pet_id = self.kwargs.get('pet_id')
+        try:
+            pet = Pet.objects.get(id=pet_id, owner=self.request.user)
+        except Pet.DoesNotExist:
+            raise PermissionError("해당 반려견에 대한 권한이 없습니다.")
+
+        serializer.save(pet=pet)
+
+
+class PetCheckupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = PetCheckup.objects.all()
+    serializer_class = PetCheckupSerializer
+    permission_classes = [IsOwnerOrReadOnly]

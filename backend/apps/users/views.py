@@ -1,3 +1,40 @@
-from django.shortcuts import render
+from rest_framework import generics, permissions
+from django.contrib.auth import get_user_model
+from .serializers import UserSerializer, UserRegisterSerializer
 
-# Create your views here.
+User = get_user_model()
+
+class UserListCreateAPIView(generics.ListCreateAPIView):
+    """
+    GET: 전체 유저 조회 (인증 필요)
+    POST: 유저 생성
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = UserRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return generics.Response(UserSerializer(user).data, status=201)
+
+
+class UserRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET: 개별 유저 조회
+    PUT: 유저 정보 수정
+    DELETE: 유저 삭제
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class UserRegisterView(generics.CreateAPIView):
+    """
+    회원가입 (인증 없이 가능)
+    """
+    queryset = User.objects.all()
+    serializer_class = UserRegisterSerializer
+    permission_classes = [permissions.AllowAny]
