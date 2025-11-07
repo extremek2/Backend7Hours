@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     
     # DRF 등 추가 앱
     'rest_framework',
+    'drf_yasg',
     
     # 프로젝트용 추가 앱
     'apps.users',

@@ -1,9 +1,13 @@
 from core.models import BaseModel, BaseScheduleModel
+from django.db import models
 from django.conf import settings # CustomUser 참조를 위해 필요
 
 
 # 반려견 품종
 class PetBreed(BaseModel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     breed_name = models.CharField(max_length=45, unique=True)
 
     class Meta:

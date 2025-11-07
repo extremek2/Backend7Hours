@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Pet, PetBreed, PetHistory, PetCheckup
+from .models import Pet, PetBreed, PetEvent, PetCheckup
 from apps.users.models import CustomUser
 
 # pet_breed
@@ -46,26 +46,22 @@ class PetSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
     
 
-# pet_history    
-class PetHistorySerializer(serializers.ModelSerializer):
-# pet 필드: Pet 객체의 ID를 받아야 함 (별도 로직 필요 없음)
-
+# pet_event
+class PetEventSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PetHistory
+        model = PetEvent
         fields = [
-            'id', 'pet', 'event_type', 'event_title', 'event_date', 
-            'next_due_date', 'quantity', 'price', 'notes', 'created_at'
+            'id', 'pet', 'event_type', 'event_date', 
+            'due_date', 'is_completed', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-# pet_history_checkup        
+# pet_checkup
 class PetCheckupSerializer(serializers.ModelSerializer):
-    # pet_history_id를 직접 참조하는 대신, history 객체의 ID를 받습니다.
-    # history 필드는 NULL을 허용하므로 required=False
     class Meta:
         model = PetCheckup
         fields = [
-            'id', 'pet', 'history', 'checkup_date', 'clinic_name', 
-            'next_checkup_date', 'notes', 'created_at'
+            'id', 'event', 'hospital_name', 'memo', 'event_date', 
+            'due_date', 'created_at'
         ]
         read_only_fields = ['created_at']

@@ -1,9 +1,9 @@
 from rest_framework import generics, permissions
-from .models import Pet, PetBreed, PetHistory, PetCheckup
+from .models import Pet, PetBreed, PetEvent, PetCheckup
 from .serializers import (
     PetSerializer, 
     PetBreedSerializer,
-    PetHistorySerializer,
+    PetEventSerializer,
     PetCheckupSerializer,
 )
 from .permissions import IsOwnerOrReadOnly # 곧 정의할 커스텀 권한
@@ -47,7 +47,7 @@ class PetBreedListView(generics.ListAPIView):
     
 # 히스토리 전체 항목
 class PetHistoryListCreateView(generics.ListCreateAPIView):
-    serializer_class = PetHistorySerializer
+    serializer_class = PetEventSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
@@ -56,13 +56,13 @@ class PetHistoryListCreateView(generics.ListCreateAPIView):
         """
         pet_id = self.kwargs.get('pet_id')
         if not pet_id:
-            return PetHistory.objects.none()
+            return PetEvent.objects.none()
 
         # 본인 반려견인지 검사
         if not self.request.user.is_authenticated:
-            return PetHistory.objects.none()
+            return PetEvent.objects.none()
 
-        return PetHistory.objects.filter(
+        return PetEvent.objects.filter(
             pet__id=pet_id,
             pet__owner=self.request.user
         ).order_by('-event_date')
@@ -78,8 +78,8 @@ class PetHistoryListCreateView(generics.ListCreateAPIView):
 
 
 class PetHistoryRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = PetHistory.objects.all()
-    serializer_class = PetHistorySerializer
+    queryset = PetEvent.objects.all()
+    serializer_class = PetEventSerializer
     permission_classes = [IsOwnerOrReadOnly]
     
 
