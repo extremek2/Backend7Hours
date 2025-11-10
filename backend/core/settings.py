@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     # 프로젝트용 추가 앱
     'apps.users',
     'apps.pets',
+    'apps.places',
 ]
 
 MIDDLEWARE = [

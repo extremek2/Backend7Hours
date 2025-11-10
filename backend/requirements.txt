@@ -17,5 +17,7 @@ requests==2.32.3
 # Production Deployment (WSGI Server)
 gunicorn==22.0.0
 
+# Test Code
+Faker>=18.0.0
 
 # Database Driver (entrypoint.sh에서 동적으로 설치)
