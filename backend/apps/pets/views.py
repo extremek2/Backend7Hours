@@ -46,7 +46,7 @@ class PetBreedListView(generics.ListAPIView):
     
     
 # 히스토리 전체 항목
-class PetHistoryListCreateView(generics.ListCreateAPIView):
+class PetEventListCreateView(generics.ListCreateAPIView):
     serializer_class = PetEventSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
@@ -77,7 +77,7 @@ class PetHistoryListCreateView(generics.ListCreateAPIView):
         serializer.save(pet=pet)
 
 
-class PetHistoryRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class PetEventRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = PetEvent.objects.all()
     serializer_class = PetEventSerializer
     permission_classes = [IsOwnerOrReadOnly]
