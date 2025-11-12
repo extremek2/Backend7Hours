@@ -23,5 +23,6 @@ urlpatterns = [
     path('users/', include('apps.users.urls')),
     path('pets/', include('apps.pets.urls')),
     path('places/', include('apps.places.urls')),
+    path('paths/', include('apps.paths.urls')),
     path('swagger/', include('apps.swagger.urls')),
 ]

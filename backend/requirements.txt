@@ -13,6 +13,7 @@ django-allauth==64.2.1
 # Utilities
 python-dotenv==1.0.1
 requests==2.32.3
+geopy==2.4.1
 
 # Production Deployment (WSGI Server)
 gunicorn==22.0.0
