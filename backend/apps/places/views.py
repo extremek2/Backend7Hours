@@ -15,7 +15,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 선택:
     - lat: 사용자 위도 (기본 용산역)
     - lng: 사용자 경도 (기본 용산역)
-    - radius: 반경 (기본 2km)
+    - radius: 반경 (기본 5km)
     - search: title, address, tel, source 검색
     - category1, category2, category3: 카테고리 필터
 """
@@ -28,7 +28,7 @@ class PlaceListAPIView(ListAPIView):
     filter_backends = [filters.SearchFilter]
     search_fields = ['title', 'address', 'tel', 'source']
 
-    DEFAULT_RADIUS_KM = 2  # 기본 반경 2km
+    DEFAULT_RADIUS_KM = 5  # 기본 반경 5km
     DEFAULT_LAT = 37.5295  # 용산역 위도
     DEFAULT_LNG = 126.9648  # 용산역 경도
     
