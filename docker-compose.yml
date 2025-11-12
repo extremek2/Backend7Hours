@@ -1,0 +1,27 @@
+services:
+  backend:
+    build: ./backend
+    container_name: backend_dev
+    env_file:
+      - .env
+    ports:
+      - "${DJANGO_PORT}:${DJANGO_PORT}"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: 7hours_db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
