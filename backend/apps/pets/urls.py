@@ -4,7 +4,7 @@ from .views import (
     PetRetrieveUpdateDestroyView,
     PetBreedListView,
 )
-from .history_urls import urlpatterns as history_urls
+from .event_urls import urlpatterns as event_urls
 
 urlpatterns = [
     # 품종 목록
@@ -13,6 +13,6 @@ urlpatterns = [
     path('', PetListCreateView.as_view(), name='pet-list-create'),
     # 특정 반려견의 상세/수정/삭제 및 하위 항목 연결
     path('<int:pk>/', PetRetrieveUpdateDestroyView.as_view(), name='pet-detail'),
-    # 하위 항목인 히스토리 (history_urls.py 로 확장)
-    path('<int:pet_id>/histories/', include(history_urls)),
+    # 하위 항목인 히스토리 (events_urls.py 로 확장)
+    path('<int:pet_id>/events/', include(event_urls)),
 ]
