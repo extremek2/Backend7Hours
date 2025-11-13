@@ -9,6 +9,7 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True
+        ordering = ['-created_at']
         
 # 일정 관리용 모델로 공통모델 + 이벤트 발생일/다음 이벤트 예정일 추가
 class BaseScheduleModel(BaseModel):
@@ -17,6 +18,7 @@ class BaseScheduleModel(BaseModel):
 
     class Meta:
         abstract = True
+        ordering = ['-event_date']
         
 class BasePlaceModel(BaseModel):
     title = models.CharField(max_length=255)          # 장소명

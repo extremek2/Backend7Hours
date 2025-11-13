@@ -1,10 +1,10 @@
 from rest_framework import generics, permissions
-from .models import Pet, PetBreed, PetEvent, PetCheckup
+from rest_framework.exceptions import PermissionDenied
+from .models import Pet, PetBreed, PetEvent
 from .serializers import (
     PetSerializer, 
     PetBreedSerializer,
     PetEventSerializer,
-    PetCheckupSerializer,
 )
 from .permissions import IsOwnerOrReadOnly # 곧 정의할 커스텀 권한
 
@@ -72,46 +72,11 @@ class PetEventListCreateView(generics.ListCreateAPIView):
         try:
             pet = Pet.objects.get(id=pet_id, owner=self.request.user)
         except Pet.DoesNotExist:
-            raise PermissionError("해당 반려견에 대한 권한이 없습니다.")
+            raise PermissionDenied("해당 반려견에 대한 접근/생성 권한이 없습니다.")
 
         serializer.save(pet=pet)
-
 
 class PetEventRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = PetEvent.objects.all()
     serializer_class = PetEventSerializer
-    permission_classes = [IsOwnerOrReadOnly]
-    
-
-# 히스토리 세부 항목 (건강검진)
-class PetCheckupListCreateView(generics.ListCreateAPIView):
-    serializer_class = PetCheckupSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-    def get_queryset(self):
-        """
-        특정 반려견의 건강검진만 필터링
-        """
-        pet_id = self.kwargs.get('pet_id')
-        if not pet_id or not self.request.user.is_authenticated:
-            return PetCheckup.objects.none()
-
-        return PetCheckup.objects.filter(
-            pet__id=pet_id,
-            pet__owner=self.request.user
-        ).order_by('-checkup_date')
-
-    def perform_create(self, serializer):
-        pet_id = self.kwargs.get('pet_id')
-        try:
-            pet = Pet.objects.get(id=pet_id, owner=self.request.user)
-        except Pet.DoesNotExist:
-            raise PermissionError("해당 반려견에 대한 권한이 없습니다.")
-
-        serializer.save(pet=pet)
-
-
-class PetCheckupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = PetCheckup.objects.all()
-    serializer_class = PetCheckupSerializer
     permission_classes = [IsOwnerOrReadOnly]

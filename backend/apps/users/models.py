@@ -1,10 +1,17 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import uuid
 
 class CustomUser(AbstractUser):
     
     full_name = models.CharField(max_length=100, verbose_name="이름")
-    nickname = models.CharField(max_length=50, blank=True, null=False, verbose_name="별명")
+    nickname = models.CharField(
+        max_length=50,
+        unique=True,
+        null=False,
+        default='user_' + uuid.uuid4().hex[:8], # 고유한 임시값
+        verbose_name="별명"
+        )
     email = models.EmailField(unique=True, verbose_name="이메일")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="전화번호")
     address = models.CharField(max_length=255, blank=True, null=True, verbose_name="주소")
