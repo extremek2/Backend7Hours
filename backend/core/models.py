@@ -1,5 +1,6 @@
 from django.db import models
 
+
 # 공통 모델로 작성일/수정일 추가
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)

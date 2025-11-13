@@ -10,6 +10,7 @@ services:
       - ./backend:/app
     depends_on:
       - db
+      - minio
 
   db:
     image: postgis/postgis:16-3.4
@@ -23,5 +24,25 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  minio:
+    image: minio/minio
+    container_name: my-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000" # Minio API 포트 (Django가 접속할 곳)
+      - "9001:9001" # Minio 관리자 웹페이지 포트
+    environment:
+      # .env 파일에서 읽어오도록 수정 (보안/관리상 이점)
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
 volumes:
   db_data:
+  minio_data:

@@ -48,6 +48,10 @@ INSTALLED_APPS = [
     # 프로젝트용 추가 앱
     'apps.users',
     'apps.pets',
+    
+    'django.contrib.gis',
+    'apps.posts',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -95,64 +99,20 @@ REST_FRAMEWORK = {
 
 
 # manage.py와 같은 위치에 있는 .env.dev를 로드
-load_dotenv(os.path.join(BASE_DIR, '.env'))
+#load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': os.environ.get('MYSQL_DATABASE'),
-#         'USER': os.environ.get('MYSQL_USER'),
-#         'PASSWORD': os.environ.get('MYSQL_PASSWORD'),
-#         'HOST': 'db',  # docker-compose 서비스 이름('db'-> 컨테이너 내부용)
-#         'PORT': os.environ.get('DB_PORT'),
-#         'OPTIONS': {
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-#         },
-#     }
-    
-#     # 'default': {
-#     #     'ENGINE': 'django.db.backends.sqlite3',
-#     #     'NAME': BASE_DIR / 'db.sqlite3',
-#     # }
-# }
-
-DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").lower()
-
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv(f"DB_PORT_{DB_ENGINE}", "")
-
-GDAL_LIBRARY_PATH = os.getenv("GDAL_LIBRARY_PATH")
-GEOS_LIBRARY_PATH = os.getenv("GEOS_LIBRARY_PATH")
-
-ENGINE = os.getenv(f"DB_ENGINE_{DB_ENGINE}")
-if not ENGINE:
-    raise ValueError(f"No ENGINE defined for DB_ENGINE={DB_ENGINE}")
 
 DATABASES = {
     "default": {
-        "ENGINE": ENGINE,
-        "NAME": DB_NAME,
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': 'db',
+        'PORT': os.environ.get('DB_PORT', 5432),
     }
 }
 
-if DB_ENGINE != "sqlite":
-    DATABASES["default"].update({
-        "USER": DB_USER,
-        "PASSWORD": DB_PASSWORD,
-        "HOST": DB_HOST,
-        "PORT": DB_PORT,
-    })
-
-db_options = os.getenv(f"DB_OPTIONS_{DB_ENGINE}", "{}")
-try:
-    DATABASES["default"]["OPTIONS"] = json.loads(db_options)
-except json.JSONDecodeError:
-    pass
-
-print(f"✅ Using {DB_ENGINE} database on {DB_HOST}:{DB_PORT}")
 
 
 # Password validation
@@ -198,3 +158,26 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# --- Minio (S3) Storage Settings ---
+
+# 1. 스토리지 백엔드
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# 2. Minio 서버 접속 정보 (Docker Compose 기준)
+AWS_ACCESS_KEY_ID = 'minioadmin'
+AWS_SECRET_ACCESS_KEY = 'minioadminpassword'
+
+# 3. Minio 버킷 정보
+AWS_STORAGE_BUCKET_NAME = 'geodjango' # Minio에서 생성한 버킷 이름
+
+# 4. Minio 서버 주소 (Docker 내부 통신)
+AWS_S3_ENDPOINT_URL = 'http://minio:9000' 
+
+# 5. 기타 설정
+AWS_LOCATION = 'media' # 버킷 내에서 /media/ 폴더 안에 저장
+AWS_S3_SECURE = False  # Docker 내부 HTTP 통신
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
