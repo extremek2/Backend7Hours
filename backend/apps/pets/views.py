@@ -19,7 +19,12 @@ class PetListCreateView(generics.ListCreateAPIView):
         # 요청자가 인증되지 않았다면 빈 쿼리셋을 반환
         if not self.request.user.is_authenticated:
             return Pet.objects.none()
-            
+        
+        # 3. 일반 사용자인 경우: 요청한 사용자가 소유한 Pet 객체들만 필터링
+        if user.is_superuser:
+            return Pet.objects.all().order_by('-id')
+        
+        
         # 요청한 사용자가 소유한 Pet 객체들만 필터링합니다.
         return Pet.objects.filter(owner=self.request.user).order_by('-id')
 
@@ -49,27 +54,27 @@ class PetRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Pet.objects.all()
     serializer_class = PetSerializer
     # 3. 권한 설정: 커스텀 권한 (IsOwnerOrReadOnly)을 적용합니다.
-    # permission_classes = [IsOwnerOrReadOnly]
-    permission_classes = [permissions.AllowAny] # 임시 적용
+    permission_classes = [IsOwnerOrReadOnly]
+    # permission_classes = [permissions.AllowAny] # 임시 적용
     
     # 참고: get_queryset을 오버라이드하여 소유자 필터링을 할 수도 있지만, 
     # 상세 조회/수정/삭제는 IsOwnerOrReadOnly 권한 클래스에서 더 강력하게 제어합니다.
     
 class PetBreedListView(generics.ListAPIView):
-    queryset = PetBreed.objects.all().order_by('breed_name')
+    queryset = PetBreed.objects.all().order_by('category', 'breed_name')
     serializer_class = PetBreedSerializer
     # 품종 목록은 로그인 없이도 볼 수 있도록 허용합니다.
     permission_classes = [permissions.AllowAny]
     
     
-# 히스토리 전체 항목
+# 이벤트 전체 항목
 class PetEventListCreateView(generics.ListCreateAPIView):
     serializer_class = PetEventSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         """
-        특정 pet_id 하위의 히스토리만 조회
+        특정 pet_id 하위의 이벤트만 조회
         """
         pet_id = self.kwargs.get('pet_id')
         if not pet_id:
