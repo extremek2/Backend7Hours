@@ -10,7 +10,7 @@ KCISA_KEY = "a7d54bca-e026-4bf0-a490-2cbbf0433709"
 KCISA_URL = "https://api.kcisa.kr/openapi/API_TOU_050/request"
 
 TOUR_KEY = unquote("Um%2Bqj6eBcNF3%2FgXOHnehh%2BpF5QvECe9Q4DGbptVAij9wB3Flsx5KDTC5hPaf5kq636FuXDi0eG1jy8KjF8BfJQ%3D%3D")
-TOUR_URL = "http://api.visitkorea.or.kr/openapi/service/rest/KorService/areaBasedList"
+TOUR_URL = "https://apis.data.go.kr/B551011/KorPetTourService/areaBasedList"
 
 # ===============================
 # 공통 변환 로직
@@ -116,11 +116,12 @@ def save_kcisa_to_place(rows):
 def fetch_ktour_places(areaCode=None, sigunguCode=None, numOfRows=1000, pageNo=1):
     # ... (기존 API 호출 로직 유지) ...
     params = {
-        "ServiceKey": TOUR_KEY,
+        "serviceKey": TOUR_KEY,
         "numOfRows": numOfRows,
         "pageNo": pageNo,
         "MobileOS": "ETC",
         "MobileApp": "MyApp",
+        "_type": "json"
     }
     # ... (areaCode, sigunguCode 조건 추가) ...
     if areaCode: params["areaCode"] = areaCode
