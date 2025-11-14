@@ -1,5 +1,4 @@
 from django.db import models
-from django.contrib.gis.db import models as gis_models
 
 
 # 공통 모델로 작성일/수정일 추가
@@ -20,18 +19,19 @@ class BaseScheduleModel(BaseModel):
         abstract = True
         ordering = ['-event_date']
         
-class BasePlaceModel(BaseModel):
-    title = models.CharField(max_length=255)          # 장소명
-    tel = models.CharField(max_length=50, null=True, blank=True)  # 전화번호
-    address = models.CharField(max_length=255, null=True, blank=True)  # 주소
-    coordinates = gis_models.PointField(geography=True, srid=4326, null=True, blank=True)# 좌표 (PostGIS)
-    source = models.CharField(max_length=50, default="unknown")   # 데이터 출처
-    is_active = models.BooleanField(default=True)    # 활성화 여부
-    
-    # 3중 카테고리 (통합 Place 모델에서 사용)
-    category1 = models.ForeignKey('places.Category1', on_delete=models.SET_NULL, null=True, blank=True)
-    category2 = models.ForeignKey('places.Category2', on_delete=models.SET_NULL, null=True, blank=True)
-    category3 = models.ForeignKey('places.Category3', on_delete=models.SET_NULL, null=True, blank=True)
 
-    class Meta:
-        abstract = True
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    # Self-Referencing ForeignKey: 'self'를 사용하여 같은 모델 참조
+    parent = models.ForeignKey(
+    'self',  
+    on_delete=models.SET_NULL, 
+    null=True, 
+    blank=True, 
+    related_name='children',
+    verbose_name='상위 카테고리'
+    )
+
+    def __str__(self):
+        return self.name

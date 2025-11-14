@@ -11,7 +11,8 @@ from .permissions import IsOwnerOrReadOnly # 곧 정의할 커스텀 권한
 
 class PetListCreateView(generics.ListCreateAPIView):
     serializer_class = PetSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]
     
     # 1. 목록 조회 필터링: 현재 로그인된 사용자의 반려견만 보여줍니다.
     def get_queryset(self):
@@ -25,15 +26,31 @@ class PetListCreateView(generics.ListCreateAPIView):
     # 2. 생성 시 owner 자동 할당:
     #    PetSerializer의 create 메서드에서 이 요청 정보를 사용하여 owner를 자동 할당합니다.
     def perform_create(self, serializer):
+        
+        
+        # 임시: 인증되지 않은 경우 첫 번째 사용자를 owner로 설정
+        if not self.request.user.is_authenticated:
+            from apps.users.models import CustomUser
+            default_user = CustomUser.objects.first()  # 또는 특정 ID: .get(id=1)
+            if not default_user:
+                raise PermissionDenied("테스트용 기본 사용자가 없습니다.")
+            serializer.save(owner=default_user)
+        else:
+            serializer.save(owner=self.request.user)
+            
+            
+            
+            
         # 시리얼라이저의 create 메서드에 request 객체를 context로 전달합니다.
         # 이렇게 하면 시리얼라이저가 owner 필드를 자동으로 설정합니다.
-        serializer.save(owner=self.request.user)
+        # serializer.save(owner=self.request.user)
         
 class PetRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Pet.objects.all()
     serializer_class = PetSerializer
     # 3. 권한 설정: 커스텀 권한 (IsOwnerOrReadOnly)을 적용합니다.
-    permission_classes = [IsOwnerOrReadOnly] 
+    # permission_classes = [IsOwnerOrReadOnly]
+    permission_classes = [permissions.AllowAny] # 임시 적용
     
     # 참고: get_queryset을 오버라이드하여 소유자 필터링을 할 수도 있지만, 
     # 상세 조회/수정/삭제는 IsOwnerOrReadOnly 권한 클래스에서 더 강력하게 제어합니다.

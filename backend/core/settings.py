@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     
     # 프로젝트용 추가 앱
+    'core',
     'apps.users',
     'apps.pets',
     'apps.places',
@@ -87,7 +88,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',  # IsAuthenticated
     ],
 }
 

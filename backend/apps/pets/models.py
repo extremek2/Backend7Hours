@@ -5,7 +5,7 @@ from django.conf import settings
 
 # 반려견 품종
 class PetBreed(models.Model):
-    breed_name = models.CharField(max_length=45, unique=True)
+    breed_name = models.CharField(max_length=45, unique=True, null=True)
 
     class Meta:
         db_table = 'pet_breed'
