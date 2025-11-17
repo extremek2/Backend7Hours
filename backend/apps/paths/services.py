@@ -8,7 +8,7 @@ from urllib.parse import unquote
 from geopy.distance import distance as geopy_distance
 
 
-User = get_user_model()
+User = get_user_model() # 런타임에서 CustomUser 클래스 반환
 
 class PathService:
     BASE_URL = "https://apis.data.go.kr/B551011/Durunubi/courseList"
@@ -16,6 +16,7 @@ class PathService:
     # --------------------------
     # 위치 기반 추천
     # --------------------------
+       
     @staticmethod
     def get_or_create_paths(lat: float, lng: float, radius_m: int = 5000):
         """위치 기반 DB 검색 → 없으면 외부 API 호출 후 저장"""
@@ -136,7 +137,7 @@ class PathService:
             "MobileOS": "ETC",
             "MobileApp": "7hours",
             "_type": "json",
-            "numOfRows": 307,
+            "numOfRows": 10,  # 총 307개 -> 임시로 10개 설정
             "pageNo": 1,
         }
         try:

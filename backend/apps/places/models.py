@@ -68,7 +68,7 @@ from core.models import BaseModel
 # 통합 Place 모델            
 class Place(BaseModel):
     title = models.CharField(max_length=255)          # 장소명
-    tel = models.CharField(max_length=50, null=True, blank=True)  # 전화번호
+    tel = models.CharField(max_length=100, null=True, blank=True)  # 전화번호
     address = models.CharField(max_length=255, null=True, blank=True)  # 주소
     coordinates = gis_models.PointField(geography=True, srid=4326, null=True, blank=True)# 좌표 (PostGIS)
     is_active = models.BooleanField(default=True)    # 활성화 여부
