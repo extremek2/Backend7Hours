@@ -34,6 +34,13 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    # 프로젝트용 추가 앱
+    'core',
+    'apps.users',
+    'apps.pets',
+    'apps.places',
+    'apps.paths',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,14 +50,8 @@ INSTALLED_APPS = [
     
     # DRF 등 추가 앱
     'rest_framework',
+    'rest_framework_simplejwt',
     'drf_yasg',
-    
-    # 프로젝트용 추가 앱
-    'core',
-    'apps.users',
-    'apps.pets',
-    'apps.places',
-    'apps.paths',
 ]
 
 MIDDLEWARE = [
@@ -85,6 +86,9 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # 토큰 인증
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
