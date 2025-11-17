@@ -5,17 +5,23 @@ from django.conf import settings
 
 # 반려견 품종
 class PetBreed(models.Model):
-    breed_name = models.CharField(max_length=45, unique=True)
+    breed_name = models.CharField(max_length=45, unique=True, null=True)
+    category = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        verbose_name="분류",
+        help_text="소형견 / 중형견 / 대형견"
+    )
 
     class Meta:
         db_table = 'pet_breed'
         verbose_name = '품종'
         verbose_name_plural = '품종 목록'
-        ordering = ['breed_name']  # 알파벳 순 정렬
+        ordering = ['category', 'breed_name']  # 한글 가나다순으로 변경 가능: ['breed_name'] 그대로 사용 가능
 
     def __str__(self):
         return self.breed_name
-
 
 # 반려견 기본 정보
 # 성별 분류

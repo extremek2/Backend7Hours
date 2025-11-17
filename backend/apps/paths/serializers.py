@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Path
 
+
 class CoordSerializer(serializers.Serializer):
     lat = serializers.FloatField()
     lng = serializers.FloatField()
@@ -16,6 +17,7 @@ class UserPathCreateSerializer(serializers.Serializer):
     duration = serializers.IntegerField(required=False)
 
 class PathSerializer(serializers.ModelSerializer):
+    
     coords = serializers.SerializerMethodField()
     distance = serializers.SerializerMethodField()
 
@@ -27,7 +29,7 @@ class PathSerializer(serializers.ModelSerializer):
         ]
 
     def get_coords(self, obj):
-        if not obj.geom:
+        if getattr(obj, "geom", None) is None:
             return []
         return [
             {"lat": pt[1], "lng": pt[0], "z": pt[2] if len(pt) > 2 else 0}
@@ -38,5 +40,9 @@ class PathSerializer(serializers.ModelSerializer):
         # annotate(distance_m=Distance(...))에서 주입된 거리값 사용
         distance_m = getattr(obj, "distance_m", None)
         if distance_m is not None:
-            return round(distance_m.m, 2)  # m 단위로 반환
-        return None
+            # annotate로 Distance 객체일 수도, float일 수도 있음
+            try:
+                return round(distance_m.m, 2)
+            except AttributeError:
+                return float(distance_m)
+        return 0.0

@@ -12,7 +12,7 @@ class Path(BaseModel):
     path_name = models.CharField(max_length=45)
     path_comment = models.TextField(null=True, blank=True)
     level = models.IntegerField(default=2)          # 난이도 1,2,3
-    distance = models.FloatField(null=True, blank=True)  # km
+    distance = models.FloatField(null=True, blank=True)  # m 단위
     duration = models.IntegerField(null=True, blank=True) # 분 단위
     is_private = models.BooleanField(default=False)
     thumbnail = models.CharField(max_length=255, null=True, blank=True)

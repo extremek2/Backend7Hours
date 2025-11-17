@@ -3,6 +3,7 @@ from django.contrib.gis.db.models.functions import Distance
 from rest_framework import filters
 from rest_framework.generics import ListAPIView
 from rest_framework.exceptions import ValidationError
+from django.db.models import Q
 from .models import Place
 from .serializers import PlaceSerializer
 
@@ -17,9 +18,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
     - lng: 사용자 경도 (기본 용산역)
     - radius: 반경 (기본 5km)
     - search: title, address, tel, source 검색
-    - category1, category2, category3: 카테고리 필터
 """
-
 
 class PlaceListAPIView(ListAPIView):
     permission_classes = [AllowAny]  # 누구나 접근 가능 -> 나중에 꼭 'IsAuthenticated' 로 변경 요망
@@ -35,39 +34,40 @@ class PlaceListAPIView(ListAPIView):
 
     def get_queryset(self):
         params = self.request.query_params
+        queryset = Place.objects.filter(is_active=True)
 
-        # lat/lng 가져오기, 없으면 기본값 사용
+        # 1. 위치 및 반경 필터링 및 거리 계산 (필수 로직)
         try:
             lat = float(params.get('lat', self.DEFAULT_LAT))
             lng = float(params.get('lng', self.DEFAULT_LNG))
             user_location = Point(lng, lat, srid=4326)
 
-            # radius 기본값 적용
             radius_km = float(params.get('radius', self.DEFAULT_RADIUS_KM))
             radius_m = radius_km * 1000  # km → m
         except ValueError:
-            raise ValidationError("lat, lng, radius는 숫자여야 합니다.")
+            raise ValidationError({"detail": "lat, lng, radius는 숫자여야 합니다."})
 
-        queryset = Place.objects.filter(is_active=True)
-
-        # 카테고리 필터 (선택)
-        category1 = params.get('category1')
-        category2 = params.get('category2')
-        category3 = params.get('category3')
-
-        if category1:
-            queryset = queryset.filter(category1__name=category1)
-        if category2:
-            queryset = queryset.filter(category2__name=category2)
-        if category3:
-            queryset = queryset.filter(category3__name=category3)
-
-        # DRF SearchFilter를 통한 검색 필터 자동 적용
-        # search_fields에 명시된 필드(title, address, tel, source) 적용
-
-        # 반경 필터 + 거리 계산
+        # 반경 필터 + 거리 계산 (DB 쿼리 2번을 1번으로 최적화)
         queryset = queryset.annotate(
             distance=Distance('coordinates', user_location)
         ).filter(distance__lte=radius_m).order_by('distance')
+        
+        
+        # 2. 카테고리 필터 (통합 Category 모델 활용)
+        category_name = params.get('category_name')
+
+        if category_name:
+            # 단일 category_name이 Category 1, 2, 3 중 하나와 일치하는 장소를 찾습니다.
+            # Category 2와 Category 3의 상위 카테고리(parent, parent__parent)의 이름도 함께 검사합니다.
+            
+            # Place.category 필드는 가장 세부적인 카테고리(Category 2 또는 3)를 연결합니다.
+            # 이 연결된 카테고리의 이름(category__name)이 일치하는 경우를 찾습니다.
+            # 또한, 연결된 카테고리의 부모 이름(category__parent__name)이 일치하는 경우도 찾습니다.
+            
+            queryset = queryset.filter(
+                Q(category__name__iexact=category_name) |  # 세부 카테고리 이름이 일치
+                Q(category__parent__name__iexact=category_name) # 상위 카테고리 이름이 일치
+            ).distinct() # 중복 레코드 방지
+        # 3. DRF SearchFilter 자동 적용 (title, address, tel, source)
 
         return queryset

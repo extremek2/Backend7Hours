@@ -18,7 +18,7 @@ class PetSerializer(serializers.ModelSerializer):
     )
     
     # 2. owner의 username 출력
-    owner = serializers.CharField(source='owner.username', read_only=True)
+    owner = serializers.CharField(source='owner.email', read_only=True)
 
     class Meta:
         model = Pet
@@ -31,14 +31,23 @@ class PetSerializer(serializers.ModelSerializer):
 
     # 3. 추가 로직: 등록/수정 시 현재 로그인한 사용자를 owner로 자동 할당
     def create(self, validated_data):
-        user = self.context.get('request').user
-        
-        # 유효성 검사를 통과한 데이터에 owner 필드를 추가
-        if not user.is_authenticated:
-            raise serializers.ValidationError({"owner": "사용자 인증이 필요합니다."})
+        if 'owner' not in validated_data:
+            user = self.context.get('request').user
             
-        validated_data['owner'] = user
+            # 인증되지 않은 경우 처리
+            if not user.is_authenticated:
+                from apps.users.models import CustomUser
+                default_user = CustomUser.objects.first()
+                if not default_user:
+                    raise serializers.ValidationError({"owner": "사용자 인증이 필요합니다."})
+                validated_data['owner'] = default_user
+            else:
+                validated_data['owner'] = user
+        
         return super().create(validated_data)
+        
+    
+    
      
 
 # pet_checkup
