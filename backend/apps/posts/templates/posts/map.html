@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>연결된 선 지도</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* 지도가 보일 div의 크기를 정합니다 */
+        #map { 
+            height: 500px; 
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>저장된 점들을 이은 선</h1>
+
+    <div id="map"></div>
+
+    <script>
+        // 2. Leaflet 지도 초기화
+        const map = L.map('map').setView([37.5665, 126.9780], 10); // 서울 중심
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 3. (핵심!) Django View가 전달한 GeoJSON 데이터를 JS 변수로 받기
+        //    'None'이 아닐 경우에만 그리도록 합니다.
+        const geojsonData = {{ line_geojson|safe }};
+
+        if (geojsonData) {
+            // 4. Leaflet이 GeoJSON을 읽어서 선으로 지도에 그림
+            const lineLayer = L.geoJSON(geojsonData, {
+                style: {
+                    color: "red", // 선 색상
+                    weight: 5     // 선 굵기
+                }
+            }).addTo(map);
+            
+            // 5. 그려진 선에 맞춰 지도를 확대/이동
+            map.fitBounds(lineLayer.getBounds());
+        } else {
+            console.log("표시할 선 데이터가 없습니다 (점이 2개 미만)");
+        }
+    </script>
+
+</body>
+</html>
