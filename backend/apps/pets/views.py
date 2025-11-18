@@ -21,7 +21,7 @@ class PetListCreateView(generics.ListCreateAPIView):
             return Pet.objects.none()
         
         # 3. 일반 사용자인 경우: 요청한 사용자가 소유한 Pet 객체들만 필터링
-        if user.is_superuser:
+        if self.request.user.is_superuser:
             return Pet.objects.all().order_by('-id')
         
         
