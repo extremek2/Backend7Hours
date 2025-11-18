@@ -168,13 +168,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- Minio (S3) Storage Settings ---
 
-print("-" * 50)
-print(f"DEBUG: MINIO_ROOT_USER from OS: {os.environ.get('MINIO_ROOT_USER')}")
-print(f"DEBUG: AWS_ACCESS_KEY_ID used by Django: {os.environ.get('MINIO_ROOT_USER')}")
-print(f"DEBUG: AWS_SECRET_ACCESS_KEY used by Django: {os.environ.get('MINIO_ROOT_PASSWORD')}")
-print("-" * 50)
-
-
 # 1. 스토리지 백엔드
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3to3StoBorage'
 

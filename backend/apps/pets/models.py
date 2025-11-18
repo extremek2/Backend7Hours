@@ -1,7 +1,7 @@
 from core.models import BaseModel, BaseScheduleModel
 from django.db import models
 from django.conf import settings
-from core.utils import create_upload_path
+from core.utils import UploadFilePathGenerator
 from core.custom_storages import PetsStorage
 
 
@@ -62,7 +62,7 @@ class Pet(BaseModel):
     )
     
     image = models.ImageField(
-        upload_to=create_upload_path('profile'),
+        upload_to=UploadFilePathGenerator('profile'),
         storage=PetsStorage(),
         null=True,
         blank=True
