@@ -10,12 +10,18 @@ WORKDIR /app
 # 패키지 설치를 위한 기본 유틸
 RUN apt-get update && apt-get install -y \
     build-essential \
+    wget \
     netcat-openbsd \
     gdal-bin \
     libgdal-dev \
     libproj-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
+
+# === Install MinIO mc (build-time) ===
+RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc \
+    -O /usr/local/bin/mc \
+    && chmod +x /usr/local/bin/mc
 
 # requirements.txt 복사 및 설치
 COPY requirements.txt .

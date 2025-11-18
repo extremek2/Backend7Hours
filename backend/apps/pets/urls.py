@@ -14,5 +14,5 @@ urlpatterns = [
     # 특정 반려견의 상세/수정/삭제 및 하위 항목 연결
     path('<int:pk>/', PetRetrieveUpdateDestroyView.as_view(), name='pet-detail'),
     # 하위 항목인 히스토리 (events_urls.py 로 확장)
-    path('<int:pet_id>/events/', include(event_urls)),
+    path('<int:pk>/events/', include(event_urls)),
 ]

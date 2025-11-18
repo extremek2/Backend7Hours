@@ -11,5 +11,5 @@ urlpatterns = [
     
     # GET/PUT/PATCH/DELETE: /pets/{pet_id}/events/{event_id}/
     # 특정 이벤트 상세 조회 및 (PetEvent/PetCheckup) 동시 수정/삭제 처리
-    path('<int:event_id>/', PetEventRetrieveUpdateDestroyView.as_view(), name='pet-event-detail'),
+    path('<int:pk>/', PetEventRetrieveUpdateDestroyView.as_view(), name='pet-event-detail'),
 ]

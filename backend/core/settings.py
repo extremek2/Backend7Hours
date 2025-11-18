@@ -168,22 +168,33 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- Minio (S3) Storage Settings ---
 
+print("-" * 50)
+print(f"DEBUG: MINIO_ROOT_USER from OS: {os.environ.get('MINIO_ROOT_USER')}")
+print(f"DEBUG: AWS_ACCESS_KEY_ID used by Django: {os.environ.get('MINIO_ROOT_USER')}")
+print(f"DEBUG: AWS_SECRET_ACCESS_KEY used by Django: {os.environ.get('MINIO_ROOT_PASSWORD')}")
+print("-" * 50)
+
+
 # 1. 스토리지 백엔드
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3to3StoBorage'
 
 # 2. Minio 서버 접속 정보 (Docker Compose 기준)
-AWS_ACCESS_KEY_ID = 'minioadmin'
-AWS_SECRET_ACCESS_KEY = 'minioadminpassword'
+AWS_ACCESS_KEY_ID = os.environ.get('MINIO_ROOT_USER')
+AWS_SECRET_ACCESS_KEY = os.environ.get('MINIO_ROOT_PASSWORD')
 
 # 3. Minio 버킷 정보
-AWS_STORAGE_BUCKET_NAME = 'geodjango' # Minio에서 생성한 버킷 이름
+AWS_STORAGE_BUCKET_NAME = os.environ.get('MINIO_USERS_BUCKET', 'users') # Minio에서 생성한 버킷 이름 (우선은 users 기본 사용)
 
 # 4. Minio 서버 주소 (Docker 내부 통신)
-AWS_S3_ENDPOINT_URL = 'http://minio:9000' 
+AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT_URL')
 
 # 5. 기타 설정
-AWS_LOCATION = 'media' # 버킷 내에서 /media/ 폴더 안에 저장
-AWS_S3_SECURE = False  # Docker 내부 HTTP 통신
+AWS_LOCATION = 'media' # 각 버킷 내에서 /media/ 폴더 안에 저장
+
+AWS_S3_SECURE_URLS = False  # Docker 내부 HTTP 통신
+AWS_S3_SCHEME = 'http'
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }

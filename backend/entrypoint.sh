@@ -43,6 +43,40 @@ until nc -z ${DB_HOST} ${DB_PORT}; do
 done
 echo "✅ DB is ready!"
 
+# MinIO 서비스 대기 (서비스 이름: 'minio', 포트: 9000 사용)
+echo "⏳ Waiting for MinIO service at minio:9000..."
+# nc 명령어는 대부분의 Docker 이미지에 기본으로 설치되어 있지 않으므로, 
+# 만약 위의 DB 대기 로직이 작동한다면 이미 설치되어 있다는 의미입니다.
+until nc -z minio 9000; do
+  sleep 1
+done
+echo "✅ MinIO is ready!"
+
+# MC CLIENT 별칭 변수 지정
+ALIAS_NAME=$MINIO_CLIENT_ALIAS 
+
+# MinIO 초기 설정 (Alias 설정 및 버킷 생성)
+echo "⚙️ Setting up MinIO aliases and buckets..."
+# Alias 설정 시, 서비스 이름 'minio'와 .env에서 읽어온 환경 변수 사용
+mc alias set $ALIAS_NAME $MINIO_ENDPOINT_URL $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+
+# 버킷 리스트 정의
+BUCKETS=(
+  $MINIO_USERS_BUCKET
+  $MINIO_PETS_BUCKET
+  $MINIO_PATHS_BUCKET
+  $MINIO_POSTS_BUCKET
+  $MINIO_PLACES_BUCKET
+)
+
+for BUCKET_NAME in "${BUCKETS[@]}"; do
+  echo "  -> Creating bucket: $BUCKET_NAME"
+  mc mb "$ALIAS_NAME/$BUCKET_NAME" || true
+done
+
+echo "✅ MinIO buckets created."
+# =============================================================
+
 # 마이그레이션 수행
 if [ "$RUN_MIGRATION" = "true" ]; then
   echo "📚 Running Django migrations..."

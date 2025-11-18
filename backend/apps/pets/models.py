@@ -1,6 +1,8 @@
 from core.models import BaseModel, BaseScheduleModel
 from django.db import models
 from django.conf import settings
+from core.utils import create_upload_path
+from core.custom_storages import PetsStorage
 
 
 # 반려견 품종
@@ -33,7 +35,6 @@ GENDER_CHOICES = [
 ]
 
 class Pet(BaseModel):
-
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -56,7 +57,15 @@ class Pet(BaseModel):
         PetBreed,
         on_delete=models.SET_NULL,
         null=True,
-        verbose_name='품종'
+        verbose_name='품종',
+        help_text="반려견의 품종 이름(문자열)을 입력합니다. (예: '푸들')."
+    )
+    
+    image = models.ImageField(
+        upload_to=create_upload_path('profile'),
+        storage=PetsStorage(),
+        null=True,
+        blank=True
     )
 
     class Meta:
