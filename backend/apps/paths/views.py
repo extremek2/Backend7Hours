@@ -8,7 +8,7 @@ from drf_yasg import openapi
 from .models import Path
 from .serializers import UserPathCreateSerializer, PathSerializer
 from .services import PathService
-
+from .tasks import render_path_and_upload
 
 class UserPathCreateView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -114,6 +114,31 @@ class UserPathCreateView(APIView):
                 return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
             output_serializer = PathSerializer(path)
+            return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def post(self, request):
+        serializer = UserPathCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.validated_data
+            path = PathService.create_from_user_input(
+                user_id=data["user_id"],
+                path_name=data.get("path_name"),
+                path_comment=data.get("path_comment"),
+                coords_json=data["coords"],
+                start_time=data.get("start_time"),
+                end_time=data.get("end_time"),
+            )
+            if not path:
+                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            output_serializer = PathSerializer(path)
+            
+            # 🔽 [2. 추가] 경로 생성 성공 시, 렌더링 태스크 비동기 호출
+            # path.id를 태스크에 넘겨주어 백그라운드에서 처리 시작
+            render_path_and_upload.delay(path.id)
+            
             return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

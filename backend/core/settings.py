@@ -198,3 +198,19 @@ AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
+
+
+# 🔻 [CELERY 설정]
+# (Redis가 로컬에 설치되어 있다고 가정)
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+
+MINIO_ENDPOINT = "localhost:9001/"  # (예: minio.example.com)
+MINIO_ACCESS_KEY = "minioadmin"        # (예: "minioadmin")
+MINIO_SECRET_KEY = "minioadminpassword"        # (예: "minioadmin")
+MINIO_BUCKET_NAME = "paths-"      # (예: "paths")
+MINIO_SECURE = True
