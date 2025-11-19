@@ -4,10 +4,23 @@ from core.models import BaseModel
 from django.contrib.gis.db.models import LineStringField
 
 class Path(BaseModel):
+    # 경로 출처 선택지
+    SOURCE_CHOICES = [
+        ('USER', '사용자 생성'),
+        ('PUBLIC_API', '공공 API'),
+    ]
+
     auth_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="paths"
+        on_delete=models.SET_NULL,
+        related_name="paths",
+        null=True,
+        blank=True
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default='PUBLIC_API'
     )
     path_name = models.CharField(max_length=45)
     path_comment = models.TextField(null=True, blank=True)
@@ -19,4 +32,5 @@ class Path(BaseModel):
     geom = LineStringField(dim=3, null=True, blank=True)  # 3D LineString (x=lon, y=lat, z=ele)
 
     def __str__(self):
-        return f"{self.path_name} ({self.auth_user.username})"
+        username = self.auth_user.username if self.auth_user else 'N/A'
+        return f"{self.path_name} ({username})"

@@ -1,6 +1,8 @@
 from django.urls import path
-from .views import UserPathCreateView
+from .views import PathListCreateView, PathDetailView, MyPathListView
 
 urlpatterns = [
-    path("", UserPathCreateView.as_view(), name="user-path-create"),
+    path("", PathListCreateView.as_view(), name="path-list-create"),
+    path("mine/", MyPathListView.as_view(), name="my-path-list"),
+    path("<int:pk>/", PathDetailView.as_view(), name="path-detail"),
 ]

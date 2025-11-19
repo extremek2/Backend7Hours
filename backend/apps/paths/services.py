@@ -96,7 +96,9 @@ class PathService:
     # --------------------------
     @staticmethod
     def create_from_user_input(user_id, path_name=None, path_comment=None,
-                        coords_json=None, start_time=None, end_time=None):
+                        coords_json=None, start_time=None, end_time=None,
+                        level=None, distance=None, duration=None, 
+                        thumbnail=None, is_private=None):
         """사용자가 보낸 좌표를 저장 (JSON 객체, 서버에서 z값 채움)"""
         try:
             user = User.objects.get(id=user_id)
@@ -105,13 +107,22 @@ class PathService:
 
         coords_3d = PathService.fill_z_values(coords_json)
         geom = PathService.create_linestring(coords_3d)
-        distance = PathService.calculate_distance(geom)
+        
+        # distance가 제공되지 않으면 계산
+        if distance is None:
+            distance = PathService.calculate_distance(geom)
 
-        duration = None
-        if start_time and end_time:
+        # duration이 제공되지 않으면 start_time과 end_time으로 계산
+        if duration is None and start_time and end_time:
             duration = int((end_time - start_time).total_seconds() / 60)
+        # if start_time and end_time:
+        #     duration = int((end_time - start_time).total_seconds() / 60)
 
-        level = PathService.estimate_level(geom)
+        # level이 제공되지 않으면 추정
+        if level is None:
+            level = PathService.estimate_level(geom)
+
+        # level = PathService.estimate_level(geom)
 
         path = Path.objects.create(
             auth_user=user,
@@ -120,7 +131,8 @@ class PathService:
             distance=distance,
             duration=duration,
             level=level,
-            is_private=True,
+            thumbnail=thumbnail,
+            is_private=is_private if is_private is not None else False,
             geom=geom,
         )
         return path

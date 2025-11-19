@@ -22,9 +22,9 @@ class PetListCreateView(generics.ListCreateAPIView):
         # 1. 미인증 사용자: 권한이 없으므로 빈 쿼리셋 반환
         if not user.is_authenticated:
             return Pet.objects.none()
-
-        # 2. 슈퍼유저: 모든 Pet 객체 반환
-        if user.is_superuser:
+        
+        # 3. 일반 사용자인 경우: 요청한 사용자가 소유한 Pet 객체들만 필터링
+        if self.request.user.is_superuser:
             return Pet.objects.all().order_by('-id')
             
         # 3. 일반 인증 사용자: 본인이 소유한 Pet 객체들만 반환

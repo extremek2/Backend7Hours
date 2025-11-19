@@ -8,24 +8,35 @@ class CoordSerializer(serializers.Serializer):
     # z는 서버에서 채움, 클라이언트는 보내지 않아도 됨
 
 class UserPathCreateSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField()
     path_name = serializers.CharField(required=False, allow_blank=True)
     path_comment = serializers.CharField(required=False, allow_blank=True)
+    level = serializers.IntegerField(required=False, default=2)
+    distance = serializers.FloatField(required=False)
     coords = CoordSerializer(many=True)
     start_time = serializers.DateTimeField(required=False)
     end_time = serializers.DateTimeField(required=False)
     duration = serializers.IntegerField(required=False)
+    thumbnail = serializers.CharField(required=False, allow_blank=True)
+    is_private = serializers.BooleanField(required=False, default=False)
+
+class UserPathUpdateSerializer(serializers.ModelSerializer):
+    # distance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Path
+        fields = ["path_name", "path_comment", "level", "distance", "duration", "thumbnail", "is_private"]
 
 class PathSerializer(serializers.ModelSerializer):
     
+    auth_user_nickname = serializers.CharField(source='auth_user.nickname', read_only=True)
     coords = serializers.SerializerMethodField()
     distance = serializers.SerializerMethodField()
 
     class Meta:
         model = Path
         fields = [
-            "id", "path_name", "path_comment", "level",
-            "distance", "duration", "is_private", "thumbnail", "coords"
+            "id", "source", "path_name", "path_comment", "level",
+            "distance", "duration", "is_private", "thumbnail", "coords", "auth_user_nickname"
         ]
 
     def get_coords(self, obj):
@@ -45,4 +56,10 @@ class PathSerializer(serializers.ModelSerializer):
                 return round(distance_m.m, 2)
             except AttributeError:
                 return float(distance_m)
+        
+        
+        # 2. distance_m이 없으면 모델의 distance 필드 사용 (POST/PATCH 요청용)
+        if obj.distance is not None:
+            return float(obj.distance)
+        
         return 0.0
