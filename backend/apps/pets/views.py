@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Pet, PetBreed, PetEvent
 from .serializers import (
     PetSerializer, 
@@ -13,42 +14,38 @@ class PetListCreateView(generics.ListCreateAPIView):
     serializer_class = PetSerializer
     # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
     
     # 1. 목록 조회 필터링: 현재 로그인된 사용자의 반려견만 보여줍니다.
     def get_queryset(self):
-        # 요청자가 인증되지 않았다면 빈 쿼리셋을 반환
-        if not self.request.user.is_authenticated:
+        user = self.request.user
+        # 1. 미인증 사용자: 권한이 없으므로 빈 쿼리셋 반환
+        if not user.is_authenticated:
             return Pet.objects.none()
         
         # 3. 일반 사용자인 경우: 요청한 사용자가 소유한 Pet 객체들만 필터링
         if self.request.user.is_superuser:
             return Pet.objects.all().order_by('-id')
-        
-        
-        # 요청한 사용자가 소유한 Pet 객체들만 필터링합니다.
-        return Pet.objects.filter(owner=self.request.user).order_by('-id')
+            
+        # 3. 일반 인증 사용자: 본인이 소유한 Pet 객체들만 반환
+        return Pet.objects.filter(owner=user).order_by('-id')
 
     # 2. 생성 시 owner 자동 할당:
-    #    PetSerializer의 create 메서드에서 이 요청 정보를 사용하여 owner를 자동 할당합니다.
+    #    PetSerializer의 create 메서드에서 이 요청 정보를 사용하여 owner를 자동 할당
     def perform_create(self, serializer):
-        
+        user = self.request.user
         
         # 임시: 인증되지 않은 경우 첫 번째 사용자를 owner로 설정
-        if not self.request.user.is_authenticated:
+        if not user.is_authenticated:
             from apps.users.models import CustomUser
             default_user = CustomUser.objects.first()  # 또는 특정 ID: .get(id=1)
             if not default_user:
                 raise PermissionDenied("테스트용 기본 사용자가 없습니다.")
-            serializer.save(owner=default_user)
+            owner_to_save = default_user
         else:
-            serializer.save(owner=self.request.user)
+            owner_to_save = user
             
-            
-            
-            
-        # 시리얼라이저의 create 메서드에 request 객체를 context로 전달합니다.
-        # 이렇게 하면 시리얼라이저가 owner 필드를 자동으로 설정합니다.
-        # serializer.save(owner=self.request.user)
+        serializer.save(owner=owner_to_save)
         
 class PetRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Pet.objects.all()
@@ -65,8 +62,7 @@ class PetBreedListView(generics.ListAPIView):
     serializer_class = PetBreedSerializer
     # 품종 목록은 로그인 없이도 볼 수 있도록 허용합니다.
     permission_classes = [permissions.AllowAny]
-    
-    
+   
 # 이벤트 전체 항목
 class PetEventListCreateView(generics.ListCreateAPIView):
     serializer_class = PetEventSerializer

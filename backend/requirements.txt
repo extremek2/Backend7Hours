@@ -22,3 +22,10 @@ gunicorn==22.0.0
 Faker>=18.0.0
 
 # Database Driver (entrypoint.sh에서 동적으로 설치)
+
+# --- Minio/S3 연동을 위해 추가 ---
+django-storages
+boto3
+
+# --- ImageField 사용을 위해 추가 ---
+Pillow

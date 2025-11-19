@@ -12,14 +12,14 @@ services:
       - db
 
   db:
-    image: mysql:8.0
-    container_name: 7hours_db
+    image: postgis/postgis     # 👈 1. 이미지를 PostGIS로 변경
+    container_name: 7hours_db_container # 👈 2. (선택) 이름 변경 (MySQL과 구분)
     ports:
-      - "${MYSQL_PORT_DOCKER}:3306"
+      - "5432:5432"                 # 👈 3. 포트 변경 (MySQL 3306 -> PostGIS 5432)
     env_file:
       - .env.dev
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data:/var/lib/postgresql/data # 👈 4. PostGIS 데이터 경로로 변경
 
 volumes:
   db_data:

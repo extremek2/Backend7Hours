@@ -6,7 +6,7 @@ from .models import Pet, PetBreed, PetEvent, PetCheckup
 class PetBreedSerializer(serializers.ModelSerializer):
     class Meta:
         model = PetBreed
-        fields = ['id', 'breed_name']
+        fields = ['id', 'category', 'breed_name']
 
 # pet        
 class PetSerializer(serializers.ModelSerializer):
@@ -25,7 +25,7 @@ class PetSerializer(serializers.ModelSerializer):
         # API에서 사용할 필드 목록 정의
         fields = [
             'id', 'owner', 'name', 'gender', 'birthday', 
-            'neutering', 'breed'
+            'neutering', 'breed', 'image'
         ]
         read_only_fields = ['owner'] # 명시적으로 owner 필드는 수정 불가
 
@@ -45,10 +45,6 @@ class PetSerializer(serializers.ModelSerializer):
                 validated_data['owner'] = user
         
         return super().create(validated_data)
-        
-    
-    
-     
 
 # pet_checkup
 class PetCheckupSerializer(serializers.ModelSerializer):
@@ -73,7 +69,7 @@ class PetEventSerializer(serializers.ModelSerializer):
     # 한글 레이블 반환
     event_type_display = serializers.ReadOnlyField(source='get_event_type_display')
     # 관련 checkup 역참조
-    checkup = PetCheckupSerializer(required=False)
+    checkup = PetCheckupSerializer(allow_null=True)
     
     class Meta:
         model = PetEvent
@@ -93,19 +89,21 @@ class PetEventSerializer(serializers.ModelSerializer):
         pet_event = PetEvent.objects.create(**validated_data)
         
         # 3. checkup 데이터가 있고, 이벤트 타입이 'CHECKUP'인 경우에만 자식 객체 생성
-        # 데이터 일관성 검증 (선택적)
-        if checkup_data and pet_event.event_type == 'CHECKUP':
+        if checkup_data:
             PetCheckup.objects.create(event=pet_event, **checkup_data)
-        
-        # 4. 이벤트 타입이 'CHECKUP'인데 checkup 데이터가 없는 경우
-        elif pet_event.event_type == 'CHECKUP' and not checkup_data:
-            # 이 경우 클라이언트에게 오류를 반환하거나, 빈 Checkup 객체를 생성할 수 있습니다.
-            # 여기서는 Validation Error를 발생시키는 것이 적절합니다.
-            raise serializers.ValidationError(
-                {'checkup': '이벤트 타입이 "건강검진" 일 경우, 검진 상세 정보는 필수입니다.'}
-            )
-            
         return pet_event
+    
+    def validate(self, data):
+        # 1. checkup_data를 분리하지만, data에는 원본이 남아있음
+        checkup_data = data.get('checkup', None)
+        event_type = data.get('event_type')
+
+        # 2. 이벤트 타입이 'CHECKUP'인데 checkup 데이터가 없는지 검증
+        if event_type == 'CHECKUP' and not checkup_data:
+            raise serializers.ValidationError(
+                {'checkup': '이벤트 타입이 "건강검진"일 경우, 검진 상세 정보는 필수입니다.'}
+            )
+        return data
 
     def update(self, instance, validated_data):
         # 1. checkup 데이터 분리 (업데이트 시에도 처리 필요)
@@ -123,7 +121,8 @@ class PetEventSerializer(serializers.ModelSerializer):
                     setattr(checkup_instance, key, value)
                 checkup_instance.save()
             # checkup이 없으면 새로 생성 (이벤트 타입이 CHECKUP인지 확인해야 함)
-            elif instance.event_type == 'CHECKUP':
+            elif instance.event_type == 'CHECKUP': # 👈 이 조건이 핵심
+                # instance.checkup이 없어야 하고, 현재 instance의 타입이 'CHECKUP'이어야 생성
                 PetCheckup.objects.create(event=instance, **checkup_data)
             
         return instance
