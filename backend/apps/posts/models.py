@@ -1,34 +1,33 @@
-# backend/apps/posts/models.py
-from django.contrib.gis.db import models as gis_models
+from django.conf import settings
+from django.db import models
+from core.models import BaseModel
+from core.models import Comment, Like, Bookmark
+from core.utils import UploadFilePathGenerator
+from core.custom_storages import PostsStorage
+from django.contrib.contenttypes.fields import GenericRelation
 
-# Location 모델 (GeoDjango 필드 사용)
-class Location(gis_models.Model): 
-    name = gis_models.CharField(max_length=100)
-    geom = gis_models.GeometryField(srid=4326) 
 
-    def __str__(self):
-        return self.name
-
-# Route 모델 (GeoDjango 필드 사용)
-class Route(gis_models.Model):
-    name = gis_models.CharField(max_length=100)
-    path = gis_models.LineStringField(srid=4326)
-
-    def __str__(self):
-        return self.name
-
-# Place 모델 (GeoDjango 필드 + Minio 필드)
-# 1. gis_models.Model 을 상속받도록 수정
-# 2. 중복 정의된 필드를 하나로 합침
-class Place(gis_models.Model):
-    name = gis_models.CharField(max_length=100)
+class Post(BaseModel):
+    auth_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="posts"
+    )
+    title = models.CharField(max_length=255)
+    content = content = models.TextField()
     
-    # GeoDjango 필드 (DB에 저장)
-    location = gis_models.PointField(srid=4326) # srid=4326 추가 권장
+    image = models.ImageField(
+        upload_to=UploadFilePathGenerator('post_images', user_field='auth_user'),
+        storage=PostsStorage(),
+        null=True,
+        blank=True
+    )
     
-    # Minio에 저장될 필드
-    photo = gis_models.ImageField(upload_to='places_photos/', blank=True, null=True)
-    document = gis_models.FileField(upload_to='places_docs/', blank=True, null=True)
-
-    def __str__(self):
-        return self.name
+    # 1. 댓글 역참조 설정
+    comments = GenericRelation(Comment, related_query_name='post')
+    
+    # 2. 좋아요 역참조 설정
+    likes = GenericRelation(Like, related_query_name='post')
+    
+    # 3. 즐겨찾기 역참조 설정
+    bookmarks = GenericRelation(Bookmark, related_query_name='post')

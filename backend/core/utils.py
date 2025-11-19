@@ -1,32 +1,49 @@
 import os
 import uuid
 
-def generate_unique_filename(filename):
-    # 원본 파일명(filename)을 받아 UUID 기반의 고유한 파일명을 생성
-    name, ext = os.path.splitext(filename)
-    new_filename = f"{uuid.uuid4()}{ext}"
-    return new_filename
 
-
-# 인자를 받는 함수를 클래스로 대체합니다.
 class UploadFilePathGenerator:
-    def __init__(self, path):
-        self.path = path 
+    def __init__(self, path, user_field='user'):
+        """
+        Args:
+            path: 기본 업로드 경로
+            user_field: user_id를 가져올 필드명 (기본: 'user')
+        """
+        self.path = path
+        self.user_field = user_field
 
     def __call__(self, instance, filename):
-        unique_filename = generate_unique_filename(filename)
-        # instance 정보(예: owner.id)를 경로에 사용하려면 여기에 추가 로직 필요
-        return os.path.join(self.path, unique_filename)
-
-    # 🔑 핵심 해결책: deconstruct() 메서드 구현
+        # 1. 고유 파일명 생성
+        ext = os.path.splitext(filename)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}{ext}"
+        
+        # 2. user_id 추출
+        user_id = self._get_user_id(instance)
+        
+        # 3. 경로 생성: path/user_id/filename
+        return os.path.join(self.path, str(user_id), unique_filename)
+    
+    def _get_user_id(self, instance):
+        """인스턴스에서 user_id를 추출"""
+        try:
+            # user_field 경로를 따라가기 (예: 'post.author')
+            obj = instance
+            for attr in self.user_field.split('.'):
+                obj = getattr(obj, attr)
+            
+            # ForeignKey 객체면 .id 추출, 아니면 그대로 반환
+            return obj.id if hasattr(obj, 'id') else obj
+            
+        except (AttributeError, TypeError):
+            return 'public'
+    
     def deconstruct(self):
-        # 1. 경로 (path)
-        path = f'{self.__class__.__module__}.{self.__class__.__name__}'
-        
-        # 2. 인자 (args): __init__에 전달된 인자들을 튜플로 반환
+        path = f'{self.__class__.__module__}.{self.__class__.__qualname__}'
         args = (self.path,)
-        
-        # 3. 키워드 인자 (kwargs): 현재는 사용하지 않으므로 빈 딕셔너리
         kwargs = {}
+        
+        # 기본값과 다르면 kwargs에 추가
+        if self.user_field != 'user':
+            kwargs['user_field'] = self.user_field
         
         return path, args, kwargs

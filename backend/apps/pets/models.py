@@ -62,7 +62,7 @@ class Pet(BaseModel):
     )
     
     image = models.ImageField(
-        upload_to=UploadFilePathGenerator('profile'),
+        upload_to=UploadFilePathGenerator('profile', user_field='owner'),
         storage=PetsStorage(),
         null=True,
         blank=True
