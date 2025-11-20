@@ -10,12 +10,14 @@ WORKDIR /app
 # 패키지 설치를 위한 기본 유틸
 RUN apt-get update && apt-get install -y \
     build-essential \
+    binutils \
     wget \
     netcat-openbsd \
     gdal-bin \
     libgdal-dev \
     libproj-dev \
     pkg-config \
+    python3-gdal \
     && rm -rf /var/lib/apt/lists/*
 
 # === Install MinIO mc (build-time) ===

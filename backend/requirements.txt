@@ -22,6 +22,7 @@ gunicorn==22.0.0
 Faker>=18.0.0
 
 # Database Driver (entrypoint.sh에서 동적으로 설치)
+psycopg2-binary
 
 # --- Minio/S3 연동을 위해 추가 ---
 django-storages
@@ -29,3 +30,11 @@ boto3
 
 # --- ImageField 사용을 위해 추가 ---
 Pillow
+
+# --- 장고서버 렌더링 라이브러리 ---
+celery
+redis
+minio
+geopandas
+matplotlib
+shapely

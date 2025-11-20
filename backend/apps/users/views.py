@@ -4,7 +4,15 @@ from django.contrib.auth import get_user_model
 from .serializers import UserSerializer, UserRegisterSerializer, EmailTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+# [추가] 카카오 로그인을 위한 import
+from allauth.socialaccount.providers.kakao.views import KakaoOAuth2Adapter
+from dj_rest_auth.registration.views import SocialLoginView
+
 User = get_user_model()
+
+# [추가] 카카오 로그인 뷰
+class KakaoLoginView(SocialLoginView):
+    adapter_class = KakaoOAuth2Adapter
 
 class EmailTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
@@ -18,6 +26,27 @@ class UserListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = UserSerializer
     # permission_classes = [permissions.IsAuthenticated]
     permission_classes = [permissions.AllowAny]  # 개발 편의를 위해 인증 없이 허용
+    
+    
+    def post(self, request, *args, **kwargs):
+        if 'access_token' in request.data:
+            print("🔄 [Server] '/users/'로 카카오 토큰이 들어옴 -> KakaoLoginView로 토스!")
+            
+            # 1. 뷰 인스턴스 생성
+            view = KakaoLoginView()
+            
+            # 2. 기본 셋업 (이건 방금 추가하셨죠?)
+            view.setup(request, *args, **kwargs)
+            
+            # 3. [핵심 추가!] DRF 설정값 수동 주입
+            # 이 줄이 없으면 get_serializer_context()에서 에러가 납니다.
+            view.format_kwarg = None 
+            
+            # 4. post 실행
+            return view.post(request, *args, **kwargs)
+
+        return super().post(request, *args, **kwargs)
+    
 
     def create(self, request, *args, **kwargs):
         serializer = UserRegisterSerializer(data=request.data)
