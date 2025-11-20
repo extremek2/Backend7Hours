@@ -80,26 +80,36 @@ echo "✅ MinIO buckets created."
 # 마이그레이션 수행
 if [ "$RUN_MIGRATION" = "true" ]; then
   echo "📚 Running Django migrations..."
+  python manage.py makemigrations users --noinput
+  python manage.py makemigrations --noinput
   python manage.py migrate --noinput
 fi
 
 # 개발 환경에서 슈퍼유저 자동 생성
 if [ "$CREATE_SUPERUSER" = "true" ] && [ "$DJANGO_ENV" != "prod" ]; then
   echo "👤 Ensuring superuser exists..."
-  python manage.py createsuperuser \
-    --username "$DJANGO_SUPERUSER_USERNAME" \
-    --email "$DJANGO_SUPERUSER_EMAIL" \
-    --noinput || true
 
   python manage.py shell <<EOF
 from django.contrib.auth import get_user_model
 import os
+
 User = get_user_model()
-u = User.objects.filter(username=os.getenv('DJANGO_SUPERUSER_USERNAME')).first()
-if u and not u.check_password(os.getenv('DJANGO_SUPERUSER_PASSWORD')):
-    u.set_password(os.getenv('DJANGO_SUPERUSER_PASSWORD'))
-    u.save()
-    print("✅ Admin password updated.")
+username = os.getenv("DJANGO_SUPERUSER_USERNAME")
+email = os.getenv("DJANGO_SUPERUSER_EMAIL")
+password = os.getenv("DJANGO_SUPERUSER_PASSWORD")
+
+u = User.objects.filter(username=username).first()
+
+if u:
+    if not u.check_password(password):
+        u.set_password(password)
+        u.save()
+        print("🔑 Superuser password updated")
+    else:
+        print("ℹ️ Superuser already exists")
+else:
+    User.objects.create_superuser(username=username, email=email, password=password)
+    print("🆕 Superuser created")
 EOF
 fi
 
