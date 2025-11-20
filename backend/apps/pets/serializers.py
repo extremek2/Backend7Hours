@@ -74,7 +74,7 @@ class PetEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = PetEvent
         fields = [
-            'id', 'pet', 'pet_name', 'event_type_display',
+            'id', 'pet_name', 'event_type_display',
             'event_date', 'due_date', 'is_completed', 'created_at', 'updated_at', 'checkup'
         ]
         read_only_fields = ['created_at', 'updated_at', 'pet_name', 'event_type_display']

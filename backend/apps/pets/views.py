@@ -72,7 +72,9 @@ class PetEventListCreateView(generics.ListCreateAPIView):
         """
         특정 pet_id 하위의 이벤트만 조회
         """
-        pet_id = self.kwargs.get('pet_id')
+        pet_id = self.kwargs.get('pk')
+        print(f"{self.kwargs}")
+        print(f"DEBUG: Fetching events for pet_id {pet_id} by user {self.request.user}")
         if not pet_id:
             return PetEvent.objects.none()
 
@@ -86,7 +88,8 @@ class PetEventListCreateView(generics.ListCreateAPIView):
         ).order_by('-event_date')
 
     def perform_create(self, serializer):
-        pet_id = self.kwargs.get('pet_id')
+        pet_id = self.kwargs.get('pk')
+        print(f"DEBUG: Creating event for pet_id {pet_id} by user {self.request.user}")
         try:
             pet = Pet.objects.get(id=pet_id, owner=self.request.user)
         except Pet.DoesNotExist:
