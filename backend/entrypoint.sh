@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+
 echo "🚀 Starting container setup..."
 echo "🔧 Environment loaded with DB_ENGINE=${DB_ENGINE}"
 

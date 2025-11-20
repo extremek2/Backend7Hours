@@ -25,3 +25,7 @@ staticfiles/
 .DS_Store
 venv/
 .venv/
+
+# Django migrations
+**/migrations/*
+!**/migrations/__init__.py

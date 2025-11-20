@@ -9,8 +9,10 @@ services:
     volumes:
       - ./backend:/app
     depends_on:
-      - db
-      - minio
+      db:
+        condition: service_healthy  # 👈 핵심: DB가 준비될 때까지 대기
+      minio:
+        condition: service_healthy  # 👈 MinIO가 준비될 때까지 대기
 
   db:
     image: postgis/postgis:16-3.4
@@ -23,14 +25,20 @@ services:
       - "${DB_PORT}:${DB_PORT}"
     volumes:
       - db_data:/var/lib/postgresql/data
+    # 🔻 [추가됨] DB 연결 가능 여부를 5초마다 체크
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   minio:
     image: minio/minio
     container_name: my-minio
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000" # Minio API 포트 (Django가 접속할 곳)
-      - "9001:9001" # Minio 관리자 웹페이지 포트
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}

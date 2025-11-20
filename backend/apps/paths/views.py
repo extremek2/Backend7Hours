@@ -14,7 +14,7 @@ from .serializers import (
 )
 from .services import PathService
 from .permissions import IsOwnerOrReadOnly
-
+from .tasks import render_path_and_upload
 
 class PathListCreateView(generics.ListCreateAPIView):
     """

@@ -55,6 +55,19 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_yasg',
+    
+    # ------------------------------------------------
+    # [추가] 소셜 로그인 및 JWT 관련 앱
+    # ------------------------------------------------
+    'rest_framework.authtoken', # dj-rest-auth 사용 시 필수
+    'dj_rest_auth',             # 소셜 로그인 API 처리
+    'django.contrib.sites',     # allauth가 의존
+
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.kakao', # 카카오 제공자
+    'dj_rest_auth.registration', # 소셜 가입 처리
 ]
 
 MIDDLEWARE = [
@@ -65,6 +78,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    # [추가] allauth 미들웨어 (최신 버전 필수)
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -107,6 +123,38 @@ REST_FRAMEWORK = {
 # manage.py와 같은 위치에 있는 .env.dev를 로드
 #load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+# 1. JWT 사용 설정
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'my-app-auth', # (선택) 쿠키에 저장할 이름
+    'JWT_AUTH_REFRESH_COOKIE': 'my-app-refresh-token', # (선택)
+    'JWT_AUTH_HTTPONLY': False, # 앱에서 토큰을 읽어야 하므로 False (보안 정책에 따라 True)
+}
+
+# 2. 유저 인증 방식 (이메일 vs 유저네임)
+# 안드로이드 앱 요구사항: "이메일 -> 유저네임 변경" 관련
+# 카카오 계정의 이메일을 고유 ID로 사용하도록 설정합니다.
+
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None # 커스텀 유저 모델에서 username 필드를 안 쓴다면 None
+ACCOUNT_EMAIL_REQUIRED = True            # 이메일 필수
+ACCOUNT_USERNAME_REQUIRED = False        # 유저네임(ID) 입력 불필요
+ACCOUNT_AUTHENTICATION_METHOD = 'email'  # 로그인 시 이메일 사용
+ACCOUNT_EMAIL_VERIFICATION = 'none'      # 이메일 인증 메일 발송 안 함 (소셜은 이미 인증됨)
+ACCOUNT_UNIQUE_EMAIL = True              # 이메일 중복 방지
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none' # (추가 권장)
+SOCIALACCOUNT_ADAPTER = 'apps.users.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+# 3. 어댑터 설정 (필요시 커스텀 어댑터 사용, 기본값 사용 시 생략 가능)
+# ACCOUNT_ADAPTER = 'apps.users.adapters.CustomAccountAdapter' 
+
+# [추가] allauth 인증 백엔드 설정
+AUTHENTICATION_BACKENDS = [
+    # Django 기본 관리자 페이지 로그인용
+    'django.contrib.auth.backends.ModelBackend',
+    # allauth 소셜 로그인용
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
 
 DATABASES = {
     "default": {
@@ -114,10 +162,11 @@ DATABASES = {
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': 'db',
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', 5432),
     }
 }
+
 
 
 
@@ -191,3 +240,20 @@ AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
+
+
+# 🔻 [CELERY 설정]
+# (Redis가 로컬에 설치되어 있다고 가정)
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+
+MINIO_ENDPOINT = "localhost:9001/"  # (예: minio.example.com)
+MINIO_ACCESS_KEY = "minioadmin"        # (예: "minioadmin")
+MINIO_SECRET_KEY = "minioadminpassword"        # (예: "minioadmin")
+MINIO_BUCKET_NAME = "paths-"      # (예: "paths")
+MINIO_SECURE = True
+
