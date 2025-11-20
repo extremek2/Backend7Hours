@@ -6,12 +6,26 @@ from core.utils import UploadFilePathGenerator
 from core.custom_storages import PostsStorage
 from django.contrib.contenttypes.fields import GenericRelation
 
+# 게시글
+# 타입 분류
+
+POST_REVIEW = 'review'
+POST_INFO = 'info'
+POST_CHOICES = [
+    (POST_REVIEW, '산책후기'),
+    (POST_INFO, '정보공유')
+]
 
 class Post(BaseModel):
     auth_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="posts"
+    )
+    post_type = models.CharField(
+        max_length=20,
+        choices=POST_CHOICES,
+        default=POST_REVIEW
     )
     title = models.CharField(max_length=255)
     content = content = models.TextField()
