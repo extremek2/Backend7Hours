@@ -1,28 +1,62 @@
-from rest_framework import generics, permissions, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import permissions, status, viewsets
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Count, Exists, OuterRef
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from .models import Path
+from core.models import Comment, Bookmark
 from .serializers import (
     UserPathCreateSerializer,
     UserPathUpdateSerializer,
     PathSerializer,
+    CommentSerializer,
 )
 from .services import PathService
 from .permissions import IsOwnerOrReadOnly
-from .tasks import render_path_and_upload
 
-class PathListCreateView(generics.ListCreateAPIView):
+
+class PathViewSet(viewsets.ModelViewSet):
     """
-    GET: 조건에 따라 경로 목록을 조회합니다. (위치 기반 또는 전체)
-    POST: 인증된 사용자의 새 경로를 생성합니다.
+    산책로(Path)에 대한 API.
+    기본적인 CRUD, 주변 경로 조회, 내 경로 조회, 즐겨찾기 기능을 포함합니다.
     """
-    serializer_class = PathSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    queryset = Path.objects.all()
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserPathCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return UserPathUpdateSerializer
+        # 'list', 'retrieve' 및 기타 custom action
+        return PathSerializer
+
+    def get_queryset(self):
+        queryset = Path.objects.select_related('auth_user').prefetch_related('comments__author').filter(is_private=False)
+        user = self.request.user
+
+        # 인증된 사용자의 경우, 즐겨찾기 여부와 개수 annotate
+        if user and user.is_authenticated:
+            bookmarked_subquery = Bookmark.objects.filter(
+                user=user,
+                content_type=ContentType.objects.get_for_model(Path),
+                object_id=OuterRef('pk')
+            )
+            queryset = queryset.annotate(
+                is_bookmarked=Exists(bookmarked_subquery)
+            )
+        
+        queryset = queryset.annotate(
+            bookmarks_count=Count('bookmarks')
+        )
+        
+        return queryset
 
     @swagger_auto_schema(
         operation_summary="주변 경로 조회",
@@ -33,15 +67,12 @@ class PathListCreateView(generics.ListCreateAPIView):
             openapi.Parameter('radius', openapi.IN_QUERY, description="반경 (m)", type=openapi.TYPE_NUMBER, default=5000),
         ]
     )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-
-    def get_queryset(self):
+    def list(self, request, *args, **kwargs):
         lat = self.request.query_params.get("lat")
         lng = self.request.query_params.get("lng")
         radius = float(self.request.query_params.get("radius", 5000))
 
-        queryset = Path.objects.filter(is_private=False)
+        queryset = self.get_queryset()
 
         if lat is not None and lng is not None:
             try:
@@ -51,30 +82,21 @@ class PathListCreateView(generics.ListCreateAPIView):
                     distance_m=Distance("geom", user_location)
                 ).filter(distance_m__lte=radius).order_by("distance_m")
             except (ValueError, TypeError):
-                # 유효하지 않은 파라미터는 무시하고 전체 쿼리셋 반환
-                return Path.objects.filter(is_private=False).order_by('-created_at')
+                queryset = queryset.order_by('-created_at')
         else:
             queryset = queryset.order_by('-created_at')
         
-        return queryset
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
-    @swagger_auto_schema(
-        operation_summary="사용자 경로 등록",
-        operation_description="인증된 사용자가 입력한 좌표를 기반으로 경로를 생성합니다.",
-        request_body=UserPathCreateSerializer,
-        responses={201: PathSerializer()}
-    )
-    def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
-
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+        
     def perform_create(self, serializer):
-        # UserPathCreateSerializer는 model serializer가 아니므로 직접 호출
-        create_serializer = UserPathCreateSerializer(data=self.request.data)
-        create_serializer.is_valid(raise_exception=True)
-        data = create_serializer.validated_data
-
-        path = PathService.create_from_user_input(
-            # auth_user=self.request.user,
+        data = serializer.validated_data
+        PathService.create_from_user_input(
             user_id=self.request.user.id,
             path_name=data.get("path_name"),
             path_comment=data.get("path_comment"),
@@ -87,48 +109,78 @@ class PathListCreateView(generics.ListCreateAPIView):
             thumbnail=data.get("thumbnail"),
             is_private=data.get("is_private"),
         )
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def mine(self, request):
+        """
+        현재 인증된 사용자가 생성한 경로 목록을 반환합니다.
+        """
+        # queryset = self.get_queryset().filter(auth_user=request.user)
+        queryset = Path.objects.select_related('auth_user').prefetch_related('comments__author').filter(auth_user=request.user)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated])
+    def bookmark(self, request, pk=None):
+        """
+        특정 산책로를 즐겨찾기 추가/삭제 (토글) 합니다.
+        - POST: 즐겨찾기 추가
+        - DELETE: 즐겨찾기 삭제
+        """
+        path = self.get_object()
+        content_type = ContentType.objects.get_for_model(path)
         
-        # 생성된 객체를 응답으로 보내기 위해 serializer.instance에 할당
-        serializer.instance = path
+        if request.method == 'POST':
+            bookmark, created = Bookmark.objects.get_or_create(
+                user=request.user, 
+                content_type=content_type, 
+                object_id=path.id
+            )
+            if created:
+                return Response({'status': 'bookmark added'}, status=status.HTTP_201_CREATED)
+            return Response({'status': 'bookmark already exists'}, status=status.HTTP_200_OK)
+            
+        elif request.method == 'DELETE':
+            deleted_count, _ = Bookmark.objects.filter(
+                user=request.user, 
+                content_type=content_type, 
+                object_id=path.id
+            ).delete()
+            if deleted_count > 0:
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response({'status': 'bookmark not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
-class MyPathListView(generics.ListAPIView):
+class CommentViewSet(viewsets.ModelViewSet):
     """
-    현재 인증된 사용자가 생성한 경로 목록을 반환합니다.
+    산책로(Path)에 대한 댓글 API.
     """
-    serializer_class = PathSerializer
-    permission_classes = [IsAuthenticated] # 이 뷰는 반드시 인증이 필요함을 명시
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         """
-        요청을 보낸 사용자(request.user)에게 소유권이 있는 경로만 필터링합니다.
+        URL 파라미터로 받은 `path_pk`에 해당하는 댓글만 필터링합니다.
         """
-        user = self.request.user
-        return Path.objects.filter(auth_user=user)
+        path_pk = self.kwargs.get('path_pk')
+        if not path_pk:
+            return Comment.objects.none()
+            
+        content_type = ContentType.objects.get_for_model(Path)
+        return Comment.objects.filter(content_type=content_type, object_id=path_pk)
 
-
-class PathDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    GET: 특정 경로의 상세 정보를 조회합니다.
-    PATCH: 특정 경로의 정보를 수정합니다. (소유자만 가능)
-    DELETE: 특정 경로를 삭제합니다. (소유자만 가능)
-    """
-    queryset = Path.objects.all()
-    permission_classes = [IsOwnerOrReadOnly]
-
-    def get_serializer_class(self):
-        if self.request.method == 'PATCH':
-            return UserPathUpdateSerializer
-        return PathSerializer
-
-    @swagger_auto_schema(operation_summary="개별 경로 조회")
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-
-    @swagger_auto_schema(operation_summary="경로 정보 수정 (소유자만)")
-    def patch(self, request, *args, **kwargs):
-        return super().patch(request, *args, **kwargs)
-
-    @swagger_auto_schema(operation_summary="경로 삭제 (소유자만)")
-    def delete(self, request, *args, **kwargs):
-        return super().delete(request, *args, **kwargs)
+    def perform_create(self, serializer):
+        """
+        댓글 생성 시, URL의 `path_pk`와 요청 유저 정보를 자동으로 저장합니다.
+        """
+        path_pk = self.kwargs.get('path_pk')
+        path = Path.objects.get(pk=path_pk)
+        
+        serializer.save(
+            author=self.request.user,
+            content_object=path
+        )

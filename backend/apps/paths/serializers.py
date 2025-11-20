@@ -1,5 +1,7 @@
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from .models import Path
+from core.models import Comment, Bookmark
 
 
 class CoordSerializer(serializers.Serializer):
@@ -26,17 +28,39 @@ class UserPathUpdateSerializer(serializers.ModelSerializer):
         model = Path
         fields = ["path_name", "path_comment", "level", "distance", "duration", "thumbnail", "is_private"]
 
+# 댓글 작성자 정보 Serializer
+class AuthorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = ['id', 'nickname']
+
+# 댓글 Serializer
+class CommentSerializer(serializers.ModelSerializer):
+    author = AuthorSerializer(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'author', 'content', 'created_at']
+
 class PathSerializer(serializers.ModelSerializer):
     
     auth_user_nickname = serializers.CharField(source='auth_user.nickname', read_only=True)
     coords = serializers.SerializerMethodField()
     distance = serializers.SerializerMethodField()
+    
+    # Nested Serializer로 댓글 목록 추가
+    comments = CommentSerializer(many=True, read_only=True)
+    
+    # 즐겨찾기 관련 필드 추가
+    bookmarks_count = serializers.SerializerMethodField()
+    is_bookmarked = serializers.SerializerMethodField()
 
     class Meta:
         model = Path
         fields = [
             "id", "source", "path_name", "path_comment", "level",
-            "distance", "duration", "is_private", "thumbnail", "coords", "auth_user_nickname"
+            "distance", "duration", "is_private", "thumbnail", "coords", 
+            "auth_user_nickname", "comments", "bookmarks_count", "is_bookmarked"
         ]
 
     def get_coords(self, obj):
@@ -63,3 +87,19 @@ class PathSerializer(serializers.ModelSerializer):
             return float(obj.distance)
         
         return 0.0
+
+    def get_bookmarks_count(self, obj):
+        # ViewSet에서 annotate로 전달된 값을 사용하는 것이 효율적
+        return getattr(obj, 'bookmarks_count', obj.bookmarks.count())
+
+    def get_is_bookmarked(self, obj):
+        # ViewSet에서 annotate로 전달된 값을 사용하는 것이 효율적
+        is_bookmarked = getattr(obj, 'is_bookmarked', None)
+        if is_bookmarked is not None:
+            return is_bookmarked
+        
+        # annotate가 없을 경우 수동으로 확인 (비효율적일 수 있음)
+        user = self.context.get('request').user
+        if user and user.is_authenticated:
+            return obj.bookmarks.filter(user=user).exists()
+        return False
