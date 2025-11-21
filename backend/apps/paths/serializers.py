@@ -103,3 +103,40 @@ class PathSerializer(serializers.ModelSerializer):
         if user and user.is_authenticated:
             return obj.bookmarks.filter(user=user).exists()
         return False
+
+class BookmarkedPathSerializer(serializers.ModelSerializer):
+    auth_user_nickname = serializers.CharField(source='auth_user.nickname', read_only=True)
+    distance = serializers.SerializerMethodField()
+    bookmarks_count = serializers.SerializerMethodField()
+    is_bookmarked = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Path
+        fields = [
+            "id", "source", "path_name", "path_comment", "level",
+            "distance", "duration", "is_private", "thumbnail",
+            "auth_user_nickname", "bookmarks_count", "is_bookmarked"
+        ]
+
+    def get_distance(self, obj):
+        distance_m = getattr(obj, "distance_m", None)
+        if distance_m is not None:
+            try:
+                return round(distance_m.m, 2)
+            except AttributeError:
+                return float(distance_m)
+        if obj.distance is not None:
+            return float(obj.distance)
+        return 0.0
+
+    def get_bookmarks_count(self, obj):
+        return getattr(obj, 'bookmarks_count', obj.bookmarks.count())
+
+    def get_is_bookmarked(self, obj):
+        is_bookmarked = getattr(obj, 'is_bookmarked', None)
+        if is_bookmarked is not None:
+            return is_bookmarked
+        user = self.context.get('request').user
+        if user and user.is_authenticated:
+            return obj.bookmarks.filter(user=user).exists()
+        return False
