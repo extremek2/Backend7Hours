@@ -17,7 +17,7 @@ class PetSerializer(serializers.ModelSerializer):
         required=True
     )
     
-    # 2. owner의 username 출력
+    # 2. owner의 user email 출력
     owner = serializers.CharField(source='owner.email', read_only=True)
 
     class Meta:

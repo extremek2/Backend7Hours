@@ -14,7 +14,7 @@ class CustomUserIntegrationTest(APITestCase):
 
         # Admin 계정 생성
         cls.admin = User.objects.create_user(
-            username='admin',
+            # username='admin',
             email='admin@example.com',
             password='admin1234',
             full_name='Administrator'
@@ -24,7 +24,7 @@ class CustomUserIntegrationTest(APITestCase):
         cls.dummy_users = []
         for _ in range(5):
             user = User.objects.create_user(
-                username=cls.faker.user_name(),
+                # username=cls.faker.user_name(),
                 email=cls.faker.email(),
                 password='test1234',
                 full_name=cls.faker.name(),
@@ -32,10 +32,10 @@ class CustomUserIntegrationTest(APITestCase):
             )
             cls.dummy_users.append(user)
 
-    def authenticate(self, username='admin', password='admin1234'):
+    def authenticate(self, email='admin@example.com', password='admin1234'):
         """JWT 토큰 발급 후 인증 헤더 설정"""
         url = reverse('token_obtain_pair')
-        response = self.client.post(url, {'username': username, 'password': password}, format='json')
+        response = self.client.post(url, {'email': email, 'password': password}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         access_token = response.data['access']
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
@@ -52,7 +52,6 @@ class CustomUserIntegrationTest(APITestCase):
         """회원가입 후 JWT 로그인 테스트"""
         register_url = reverse('user-register')
         new_user_data = {
-            'username': 'newuser',
             'email': 'newuser@example.com',
             'full_name': 'New User',
             'password': 'NewPass1234!',
@@ -61,11 +60,11 @@ class CustomUserIntegrationTest(APITestCase):
         # 회원가입
         response = self.client.post(register_url, new_user_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['username'], 'newuser')
+        self.assertEqual(response.data['email'], 'newuser@example.com')
 
         # 새 유저 JWT 로그인
         token_url = reverse('token_obtain_pair')
-        response = self.client.post(token_url, {'username': 'newuser', 'password': 'NewPass1234!'}, format='json')
+        response = self.client.post(token_url, {'email': 'newuser@example.com', 'password': 'NewPass1234!'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access', response.data)
         self.assertIn('refresh', response.data)
@@ -83,7 +82,6 @@ class CustomUserIntegrationTest(APITestCase):
 
         # 수정
         update_data = {
-            'username': user.username,
             'email': user.email,
             'full_name': user.full_name,
             'nickname': 'UpdatedNick'

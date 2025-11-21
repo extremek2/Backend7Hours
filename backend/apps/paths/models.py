@@ -39,5 +39,5 @@ class Path(BaseModel):
     bookmarks = GenericRelation(Bookmark, related_query_name='path')
 
     def __str__(self):
-        username = self.auth_user.username if self.auth_user else 'N/A'
-        return f"{self.path_name} ({username})"
+        email = self.auth_user.email if self.auth_user else 'N/A'
+        return f"{self.path_name} ({email})"

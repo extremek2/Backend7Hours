@@ -33,7 +33,7 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # entrypoint 스크립트 등록
-COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
+COPY entrypoint.backend.sh /entrypoint.backend.sh
+RUN chmod +x /entrypoint.backend.sh
 
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.backend.sh"]

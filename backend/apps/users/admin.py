@@ -21,6 +21,12 @@ class CustomUserAdmin(UserAdmin):
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('email', 'password1', 'password2', 'full_name', 'nickname', 'is_staff', 'is_active'),
+        }),
+    )
 
 # 기존 User 모델 등록
 admin.site.register(CustomUser, CustomUserAdmin)

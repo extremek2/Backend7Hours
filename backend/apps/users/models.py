@@ -11,7 +11,10 @@ class CustomUserManager(BaseUserManager):
             raise ValueError('이메일은 필수입니다.')
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save(using=self._db)
         return user
 
@@ -29,24 +32,16 @@ class CustomUserManager(BaseUserManager):
 
 
 class CustomUser(AbstractUser):
-    # 3. 기존 username 필드 삭제 (이메일 로그인만 쓸 것이므로)
-    username = None 
-
+    username = None  # username 제거
     # 4. 이메일 필드 (고유값 필수)
     email = models.EmailField(unique=True, verbose_name="이메일")
 
-    full_name = models.CharField(
-        max_length=100,
-        verbose_name="이름",
-        null=True,
-        blank=True
-        )
+    full_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="이름")
     
     # 5. 닉네임: default에 함수 자체를 넘겨야 함 (괄호 없이!)
     nickname = models.CharField(
         max_length=50,
         unique=True,
-        null=False,
         default=generate_unique_nickname, # 함수 자체를 전달
         verbose_name="별명"
     )
@@ -61,7 +56,7 @@ class CustomUser(AbstractUser):
     USERNAME_FIELD = "email"
     
     # 7. createsuperuser 할 때 추가로 물어볼 필드 (이메일은 위에서 이미 필수이므로 제외)
-    REQUIRED_FIELDS = ["full_name", "nickname"] 
+    REQUIRED_FIELDS = [] 
 
     # 8. 커스텀 매니저 연결
     objects = CustomUserManager()
