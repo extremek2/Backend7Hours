@@ -32,5 +32,5 @@ class Path(BaseModel):
     geom = LineStringField(dim=3, null=True, blank=True)  # 3D LineString (x=lon, y=lat, z=ele)
 
     def __str__(self):
-        username = self.auth_user.username if self.auth_user else 'N/A'
-        return f"{self.path_name} ({username})"
+        email = self.auth_user.email if self.auth_user else 'N/A'
+        return f"{self.path_name} ({email})"

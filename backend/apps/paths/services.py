@@ -34,7 +34,7 @@ class PathService:
         if not api_data:
             return []
 
-        admin_user = User.objects.get(username="admin")
+        admin_user = User.objects.get(email="admin@example.com")
         
         new_paths = []
         for item in api_data:

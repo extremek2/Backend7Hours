@@ -155,6 +155,9 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
+# sites framework 활성화
+SITE_ID = 1
+
 
 DATABASES = {
     "default": {
@@ -231,29 +234,30 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('MINIO_USERS_BUCKET', 'users') # Minio�
 AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT_URL')
 
 # 5. 기타 설정
-AWS_LOCATION = 'media' # 각 버킷 내에서 /media/ 폴더 안에 저장
+AWS_LOCATION = os.environ.get('AWS_LOCATION', 'media') # 각 버킷 내에서 /media/ 폴더 안에 저장
 
-AWS_S3_SECURE_URLS = False  # Docker 내부 HTTP 통신
-AWS_S3_SCHEME = 'http'
-AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_SCHEME = os.environ.get('AWS_S3_SCHEME', 'http')
+AWS_S3_SECURE_URLS = os.environ.get("AWS_S3_SECURE_URLS", "False").lower() == "true"  # Docker 내부 HTTP 통신
+
+AWS_S3_SIGNATURE_VERSION = os.environ.get('AWS_S3_SIGNATURE_VERSION', 's3v4')
 
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
 
-
-# 🔻 [CELERY 설정]
-# (Redis가 로컬에 설치되어 있다고 가정)
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+# CELERY 설정
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/1"
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
 
-MINIO_ENDPOINT = "localhost:9001/"  # (예: minio.example.com)
-MINIO_ACCESS_KEY = "minioadmin"        # (예: "minioadmin")
-MINIO_SECRET_KEY = "minioadminpassword"        # (예: "minioadmin")
-MINIO_BUCKET_NAME = "paths-"      # (예: "paths")
-MINIO_SECURE = True
+MINIO_ENDPOINT = "localhost:9000/"  # (예: minio.example.com)
+# MINIO_ACCESS_KEY = "minioadmin"        # (예: "minioadmin")
+# MINIO_SECRET_KEY = "minioadminpassword"        # (예: "minioadmin")
+# MINIO_BUCKET_NAME = "paths-"      # (예: "paths")
+# MINIO_SECURE = True
 
+# PATH Thumbnail 저장소
+MINIO_PATHS_BUCKET_NAME = os.environ.get('MINIO_PATHS_BUCKET')

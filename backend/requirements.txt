@@ -22,19 +22,22 @@ gunicorn==22.0.0
 Faker>=18.0.0
 
 # Database Driver (entrypoint.sh에서 동적으로 설치)
-psycopg2-binary
+psycopg2-binary==2.9.11
 
-# --- Minio/S3 연동을 위해 추가 ---
-django-storages
-boto3
+# --- S3/MinIO 스토리지 ---
+django-storages==1.14.4
+boto3==1.34.144
 
-# --- ImageField 사용을 위해 추가 ---
-Pillow
+# --- 이미지 처리 ---
+Pillow==10.4.0
 
-# --- 장고서버 렌더링 라이브러리 ---
-celery
-redis
-minio
-geopandas
-matplotlib
-shapely
+# --- 비동기 작업 큐 ---
+celery==5.4.0
+redis==5.0.8
+
+# --- MinIO 클라이언트 ---
+minio==7.2.7
+
+# --- 지리공간 데이터 처리  ---
+geopandas==1.0.1
+matplotlib==3.9.1
