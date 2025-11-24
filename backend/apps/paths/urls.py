@@ -26,10 +26,10 @@ comment_detail = views.CommentViewSet.as_view({
 
 urlpatterns = [
     # 라우터가 생성하는 URL들을 포함
-    # 예: /paths/, /paths/{pk}/, /paths/my_paths/, /paths/{pk}/bookmark/
+    # 예: /paths/, /paths/{pk}/, /paths/mine/, /paths/{pk}/bookmark/
     path('', include(router.urls)),
     
     # 댓글 관련 URL 수동 등록
-    path('paths/<int:path_pk>/comments/', comment_list, name='path-comment-list'),
-    path('paths/<int:path_pk>/comments/<int:pk>/', comment_detail, name='path-comment-detail'),
+    path('<int:id>/comments/', comment_list, name='path-comment-list'),
+    path('<int:id>/comments/<int:pk>/', comment_detail, name='path-comment-detail'),
 ]

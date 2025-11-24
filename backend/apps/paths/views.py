@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.contenttypes.models import ContentType
+from django.shortcuts import get_object_or_404
 from django.db.models import Count, Exists, OuterRef
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -38,15 +39,32 @@ class PathViewSet(viewsets.ModelViewSet):
         return PathSerializer
 
     def get_queryset(self):
-        queryset = Path.objects.select_related('auth_user').prefetch_related('comments__author').filter(is_private=False)
         user = self.request.user
-
-        # 인증된 사용자의 경우, 즐겨찾기 여부와 개수 annotate
+        
+        # update, partial_update, destroy 등 단일 객체 조작 시
+        # 소유자는 자신의 비공개 경로도 접근 가능해야 함
+        if self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            queryset = Path.objects.select_related('auth_user').prefetch_related('comments__author')
+            
+            # 인증된 사용자: 공개 경로 + 자신의 비공개 경로
+            if user and user.is_authenticated:
+                from django.db.models import Q
+                queryset = queryset.filter(
+                    Q(is_private=False) | Q(auth_user=user)
+                )
+            else:
+                # 비인증 사용자: 공개 경로만
+                queryset = queryset.filter(is_private=False)
+        else:
+            # list 등 기타 action: 공개 경로만
+            queryset = Path.objects.select_related('auth_user').prefetch_related('comments__author').filter(is_private=False)
+        
+        # 즐겨찾기 annotate (기존 코드 유지)
         if user and user.is_authenticated:
             bookmarked_subquery = Bookmark.objects.filter(
                 user=user,
                 content_type=ContentType.objects.get_for_model(Path),
-                object_id=OuterRef('pk')
+                object_id=OuterRef('id')
             )
             queryset = queryset.annotate(
                 is_bookmarked=Exists(bookmarked_subquery)
@@ -124,15 +142,40 @@ class PathViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated])
-    def bookmark(self, request, pk=None):
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def bookmark_toggle(self, request, pk=None):
         """
         특정 산책로를 즐겨찾기 추가/삭제 (토글) 합니다.
         - POST: 즐겨찾기 추가
         - DELETE: 즐겨찾기 삭제
         """
-        path = self.get_object()
+        path = get_object_or_404(Path, id=pk)
+        # 자기 경로는 즐겨찾기 불가
+        # if path.auth_user == request.user:
+        #     return Response({"detail": "자기 경로는 즐겨찾기할 수 없습니다."},
+        #                     status=status.HTTP_400_BAD_REQUEST)
+        
         content_type = ContentType.objects.get_for_model(path)
+        
+        bookmark, created = Bookmark.objects.get_or_create(
+            user=request.user, 
+            content_type=content_type, 
+            object_id=path.id
+        )
+
+        if not created:
+            bookmark.delete()
+            return Response({
+                'bookmarked': False,
+                'bookmarks_count': path.bookmarks.count(),
+                'status': 'bookmark removed'
+            }, status=status.HTTP_200_OK)
+
+        return Response({
+            'bookmarked': True,
+            'bookmarks_count': path.bookmarks.count(),
+            'status': 'bookmark added'
+        }, status=status.HTTP_201_CREATED)
         
         if request.method == 'POST':
             bookmark, created = Bookmark.objects.get_or_create(
@@ -164,9 +207,9 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        URL 파라미터로 받은 `path_pk`에 해당하는 댓글만 필터링합니다.
+        URL 파라미터로 받은 `id`에 해당하는 댓글만 필터링합니다.
         """
-        path_pk = self.kwargs.get('path_pk')
+        path_pk = self.kwargs.get('id')
         if not path_pk:
             return Comment.objects.none()
             
@@ -175,9 +218,9 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """
-        댓글 생성 시, URL의 `path_pk`와 요청 유저 정보를 자동으로 저장합니다.
+        댓글 생성 시, URL의 `id`와 요청 유저 정보를 자동으로 저장합니다.
         """
-        path_pk = self.kwargs.get('path_pk')
+        path_pk = self.kwargs.get('id')
         path = Path.objects.get(pk=path_pk)
         
         serializer.save(

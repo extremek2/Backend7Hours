@@ -22,7 +22,6 @@ class UserPathCreateSerializer(serializers.Serializer):
     is_private = serializers.BooleanField(required=False, default=False)
 
 class UserPathUpdateSerializer(serializers.ModelSerializer):
-    # distance = serializers.SerializerMethodField()
 
     class Meta:
         model = Path
