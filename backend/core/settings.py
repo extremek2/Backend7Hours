@@ -121,7 +121,7 @@ REST_FRAMEWORK = {
 
 
 # manage.py와 같은 위치에 있는 .env.dev를 로드
-#load_dotenv(os.path.join(BASE_DIR, '.env'))
+load_dotenv(BASE_DIR.parent / '.env')
 
 # 1. JWT 사용 설정
 REST_AUTH = {
@@ -221,7 +221,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # --- Minio (S3) Storage Settings ---
 
 # 1. 스토리지 백엔드
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3to3StoBorage'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # 2. Minio 서버 접속 정보 (Docker Compose 기준)
 AWS_ACCESS_KEY_ID = os.environ.get('MINIO_ROOT_USER')
