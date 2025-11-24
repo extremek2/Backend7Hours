@@ -1,6 +1,6 @@
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from .models import Pet, PetBreed, PetEvent
 from .serializers import (
     PetSerializer, 
@@ -14,7 +14,7 @@ class PetListCreateView(generics.ListCreateAPIView):
     serializer_class = PetSerializer
     # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     permission_classes = [permissions.AllowAny]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     # 1. 목록 조회 필터링: 현재 로그인된 사용자의 반려견만 보여줍니다.
     def get_queryset(self):
