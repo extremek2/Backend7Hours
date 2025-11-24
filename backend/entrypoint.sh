@@ -32,10 +32,6 @@ if [ -n "$DB_REQS" ]; then
   pip install --no-cache-dir ${DB_REQS}
 fi
 
-if [ "$ENABLE_POSTGIS" = "true" ]; then
-  echo "📘 Installing Python GIS packages: ${DB_REQS_postgis}"
-  pip install --no-cache-dir ${DB_REQS_postgis}
-fi
 
 # DB 서비스 대기
 echo "⏳ Waiting for DB service at ${DB_HOST}:${DB_PORT}..."
@@ -90,26 +86,41 @@ fi
 if [ "$CREATE_SUPERUSER" = "true" ] && [ "$DJANGO_ENV" != "prod" ]; then
   echo "👤 Ensuring superuser exists..."
 
-  python manage.py shell <<EOF
+  python manage.py shell <<'EOF'
 from django.contrib.auth import get_user_model
 import os
 
 User = get_user_model()
-username = os.getenv("DJANGO_SUPERUSER_USERNAME")
-email = os.getenv("DJANGO_SUPERUSER_EMAIL")
-password = os.getenv("DJANGO_SUPERUSER_PASSWORD")
+username_field = getattr(User, 'USERNAME_FIELD', None)  # None일 수도 있음
+email_env = os.getenv('DJANGO_SUPERUSER_EMAIL')
+password_env = os.getenv('DJANGO_SUPERUSER_PASSWORD')
+username_env = os.getenv('DJANGO_SUPERUSER_USERNAME')
 
-u = User.objects.filter(username=username).first()
+# 슈퍼유저 조회 조건
+lookup = {}
+if username_field:
+    lookup[username_field] = username_env
+else:
+    # username 필드가 없으면 email로 조회
+    lookup['email'] = email_env
+
+u = User.objects.filter(**lookup).first()
 
 if u:
-    if not u.check_password(password):
-        u.set_password(password)
+    if not u.check_password(password_env):
+        u.set_password(password_env)
         u.save()
         print("🔑 Superuser password updated")
     else:
         print("ℹ️ Superuser already exists")
 else:
-    User.objects.create_superuser(username=username, email=email, password=password)
+    create_args = {
+        'email': email_env,
+        'password': password_env
+    }
+    if username_field:
+        create_args[username_field] = username_env
+    User.objects.create_superuser(**create_args)
     print("🆕 Superuser created")
 EOF
 fi

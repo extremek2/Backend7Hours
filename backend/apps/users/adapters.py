@@ -2,6 +2,8 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth import get_user_model
 import uuid
 
+
+
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     
     def is_auto_signup_allowed(self, request, sociallogin):
@@ -13,7 +15,13 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         user = super().populate_user(request, sociallogin, data)
         
         if not user.email:
-            user.email = f"{sociallogin.account.uid}@kakao.social"
+            base_email = f"{sociallogin.account.uid}@kakao.social"
+            counter = 0
+            email = base_email
+            while get_user_model().objects.filter(email=email).exists():
+                counter += 1
+                email = f"{sociallogin.account.uid}_{counter}@kakao.social"
+            user.email = email
             print(f"⚠️ [Adapter] 이메일 자동 생성: {user.email}")
 
         if not getattr(user, 'nickname', None):
@@ -23,7 +31,7 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             
         # [추가] full_name도 강제로 채우기 (DB not null 조건 방지)
         if not getattr(user, 'full_name', None):
-             user.full_name = "Unknown"
+             user.full_name = data.get("name", "Unknown")
 
         return user
 

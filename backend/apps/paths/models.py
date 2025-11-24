@@ -1,7 +1,8 @@
 from django.conf import settings
 from django.db import models
-from core.models import BaseModel
+from core.models import BaseModel, Comment, Bookmark
 from django.contrib.gis.db.models import LineStringField
+from django.contrib.contenttypes.fields import GenericRelation
 
 class Path(BaseModel):
     # 경로 출처 선택지
@@ -30,7 +31,13 @@ class Path(BaseModel):
     is_private = models.BooleanField(default=False)
     thumbnail = models.CharField(max_length=255, null=True, blank=True)
     geom = LineStringField(dim=3, null=True, blank=True)  # 3D LineString (x=lon, y=lat, z=ele)
+    
+    # 댓글 역참조 설정
+    comments = GenericRelation(Comment, related_query_name='path')
+    
+    # 즐겨찾기 역참조 설정
+    bookmarks = GenericRelation(Bookmark, related_query_name='path')
 
     def __str__(self):
-        username = self.auth_user.username if self.auth_user else 'N/A'
-        return f"{self.path_name} ({username})"
+        email = self.auth_user.email if self.auth_user else 'N/A'
+        return f"{self.path_name} ({email})"

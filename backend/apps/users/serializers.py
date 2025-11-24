@@ -5,10 +5,10 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
 
+# 이메일 기반 JWT 발급
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields.pop('username', None)
         self.fields['email'] = serializers.EmailField()
 
     def validate(self, attrs):
@@ -37,13 +37,14 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         return data
 
+# 회원가입
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password_verification = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ['username', 'nickname', 'full_name', 'email', 'password', 'password_verification']
+        fields = ['nickname', 'full_name', 'email', 'password', 'password_verification']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_verification']:
@@ -53,7 +54,6 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_verification')
         user = User.objects.create(
-            username=validated_data['username'],
             nickname=validated_data.get('nickname', ''),
             full_name=validated_data.get('full_name', ''),
             email=validated_data['email'],
@@ -65,4 +65,4 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'full_name', 'nickname']
+        fields = ['id', 'email', 'full_name', 'nickname']

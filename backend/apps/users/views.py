@@ -3,20 +3,34 @@ from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from .serializers import UserSerializer, UserRegisterSerializer, EmailTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.permissions import IsAuthenticated
 
-# [추가] 카카오 로그인을 위한 import
+from core.models import Bookmark
+from core.serializers import BookmarkSerializer
+
+# 소셜 로그인용
 from allauth.socialaccount.providers.kakao.views import KakaoOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
 
 User = get_user_model()
 
-# [추가] 카카오 로그인 뷰
+# 카카오 로그인
 class KakaoLoginView(SocialLoginView):
     adapter_class = KakaoOAuth2Adapter
+    
+    # GET으로 redirect 오면 POST로 변환
+    def get(self, request, *args, **kwargs):
+        """
+        #카카오 GET(code=xxxx) → POST 방식으로 변환
+        """
+        request.POST = request.GET  # code, state를 POST로 옮김
+        return self.post(request, *args, **kwargs)
 
+# 이메일 JWT 로그인
 class EmailTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
 
+# 회원가입 + 카카오 로그인 토스
 class UserListCreateAPIView(generics.ListCreateAPIView):
     """
     GET: 전체 유저 조회 (인증 필요)
@@ -74,3 +88,21 @@ class UserRegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserRegisterSerializer
     permission_classes = [permissions.AllowAny]
+
+
+class UserBookmarkListView(generics.ListAPIView):
+    """
+    현재 로그인한 사용자의 모든 즐겨찾기 목록을 조회합니다.
+    """
+    serializer_class = BookmarkSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        요청을 보낸 사용자의 즐겨찾기만 필터링합니다.
+        성능 최적화를 위해 `select_related`와 `prefetch_related`를 사용합니다.
+        - `select_related`: 정방향 ForeignKey 관계인 `content_type`을 join하여 가져옵니다.
+        - `prefetch_related`: 역방향 GenericForeignKey 관계인 `content_object`를 별도 쿼리로 효율적으로 가져옵니다.
+        """
+        user = self.request.user
+        return Bookmark.objects.filter(user=user).select_related('content_type').prefetch_related('content_object')
