@@ -5,6 +5,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
 
+# 이메일 기반 JWT 발급
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,6 +37,7 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         return data
 
+# 회원가입
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password_verification = serializers.CharField(write_only=True, required=True)

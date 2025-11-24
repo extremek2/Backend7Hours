@@ -4,19 +4,29 @@ from django.contrib.auth import get_user_model
 from .serializers import UserSerializer, UserRegisterSerializer, EmailTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-# [추가] 카카오 로그인을 위한 import
+# 소셜 로그인용
 from allauth.socialaccount.providers.kakao.views import KakaoOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
 
 User = get_user_model()
 
-# [추가] 카카오 로그인 뷰
+# 카카오 로그인
 class KakaoLoginView(SocialLoginView):
     adapter_class = KakaoOAuth2Adapter
+    
+    # GET으로 redirect 오면 POST로 변환
+    def get(self, request, *args, **kwargs):
+        """
+        #카카오 GET(code=xxxx) → POST 방식으로 변환
+        """
+        request.POST = request.GET  # code, state를 POST로 옮김
+        return self.post(request, *args, **kwargs)
 
+# 이메일 JWT 로그인
 class EmailTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
 
+# 회원가입 + 카카오 로그인 토스
 class UserListCreateAPIView(generics.ListCreateAPIView):
     """
     GET: 전체 유저 조회 (인증 필요)

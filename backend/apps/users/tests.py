@@ -17,7 +17,7 @@ class CustomUserIntegrationTest(APITestCase):
             # username='admin',
             email='admin@example.com',
             password='admin1234',
-            full_name='Administrator'
+            full_name='admin'
         )
 
         # Faker 더미 유저 5명 생성
