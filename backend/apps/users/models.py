@@ -46,6 +46,14 @@ class CustomUser(AbstractUser):
         verbose_name="별명"
     )
     
+    # MinIO 설정을 settings.py에서 했다면, 자동으로 MinIO에 저장됩니다.
+    profile_image = models.ImageField(
+        upload_to='profile_images/', 
+        blank=True, 
+        null=True, 
+        verbose_name="프로필 이미지"
+    )
+    
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="전화번호")
     address = models.CharField(max_length=255, blank=True, null=True, verbose_name="주소")
     

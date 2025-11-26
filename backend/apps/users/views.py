@@ -1,9 +1,10 @@
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from .serializers import UserSerializer, UserRegisterSerializer, EmailTokenObtainPairSerializer
+from .serializers import UserSerializer, UserRegisterSerializer, EmailTokenObtainPairSerializer,UserProfileUpdateSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from core.models import Bookmark
 from core.serializers import BookmarkSerializer
@@ -106,3 +107,11 @@ class UserBookmarkListView(generics.ListAPIView):
         """
         user = self.request.user
         return Bookmark.objects.filter(user=user).select_related('content_type').prefetch_related('content_object')
+
+class UserProfileUpdateView(generics.UpdateAPIView):
+    serializer_class = UserProfileUpdateSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+    
+    def get_object(self):
+        return self.request.user   

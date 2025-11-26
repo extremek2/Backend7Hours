@@ -63,6 +63,20 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return user
 
 class UserSerializer(serializers.ModelSerializer):
+    profile_image = serializers.ImageField(use_url=True, required=False)
     class Meta:
         model = User
-        fields = ['id', 'email', 'full_name', 'nickname']
+        fields = ['id', 'email', 'full_name', 'nickname', 'profile_image']
+        
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'full_name', 'nickname', 'profile_image']
+        
+        # [중요] 이메일이나 ID는 수정 못하게 '읽기 전용'으로 설정합니다.
+        read_only_fields = ['id', 'email', 'full_name']
+        
+        extra_kwargs = {
+            'profile_image': {'required': False},
+            'nickname': {'required': False},
+        }

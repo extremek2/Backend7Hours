@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os, json
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -231,7 +232,7 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('MINIO_ROOT_PASSWORD')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('MINIO_USERS_BUCKET', 'users') # Minio에서 생성한 버킷 이름 (우선은 users 기본 사용)
 
 # 4. Minio 서버 주소 (Docker 내부 통신)
-AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT_URL')
+AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT_URL', 'http://127.0.0.1:9000')
 
 # 5. 기타 설정
 AWS_LOCATION = os.environ.get('AWS_LOCATION', 'media') # 각 버킷 내에서 /media/ 폴더 안에 저장
@@ -261,3 +262,24 @@ MINIO_ENDPOINT = "localhost:9000/"  # (예: minio.example.com)
 
 # PATH Thumbnail 저장소
 MINIO_PATHS_BUCKET_NAME = os.environ.get('MINIO_PATHS_BUCKET')
+
+SIMPLE_JWT = {
+    # 액세스 토큰 수명을 60분으로 늘림 (기본값 5분은 테스트하기 너무 짧음)
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    
+    # 리프레시 토큰 수명
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    
+    # [핵심] 헤더 타입을 'Bearer'로 확실하게 지정
+    'AUTH_HEADER_TYPES': ('Bearer',), 
+    
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    
+    # 서명 키 (settings.SECRET_KEY와 일치해야 함)
+    'SIGNING_KEY': SECRET_KEY,
+    'ALGORITHM': 'HS256',
+    
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
