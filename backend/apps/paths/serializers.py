@@ -14,12 +14,21 @@ class UserPathCreateSerializer(serializers.Serializer):
     path_comment = serializers.CharField(required=False, allow_blank=True)
     level = serializers.IntegerField(required=False, default=2)
     distance = serializers.FloatField(required=False)
-    coords = CoordSerializer(many=True)
+    coords = CoordSerializer(many=True, required=False)
     start_time = serializers.DateTimeField(required=False)
     end_time = serializers.DateTimeField(required=False)
     duration = serializers.IntegerField(required=False)
     thumbnail = serializers.CharField(required=False, allow_blank=True)
     is_private = serializers.BooleanField(required=False, default=False)
+    # 새로 추가: polyline / markers
+    polyline = serializers.CharField(required=False, allow_blank=True)
+    markers = serializers.ListField(
+        child=serializers.ListField(
+            child=serializers.FloatField()
+        ),
+        required=False,
+        allow_empty=True
+    )
 
 class UserPathUpdateSerializer(serializers.ModelSerializer):
 

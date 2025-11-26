@@ -85,33 +85,33 @@ class PathViewSet(viewsets.ModelViewSet):
             openapi.Parameter('radius', openapi.IN_QUERY, description="반경 (m)", type=openapi.TYPE_NUMBER, default=5000),
         ]
     )
-    def list(self, request, *args, **kwargs):                                                                                                                                         
-        lat = self.request.query_params.get("lat")                                                                                                                                    
-        lng = self.request.query_params.get("lng")                                                                                                                                    
-        radius = float(self.request.query_params.get("radius", 5000))                                                                                                                 
-                                                                                                                                                                                        
-        queryset = self.get_queryset()                                                                                                                                                
-                                                                                                                                                                                        
-        if lat is not None and lng is not None:                                                                                                                                       
-            try:                                                                                                                                                                      
-                lat, lng = float(lat), float(lng)                                                                                                                                     
-                user_location = Point(lng, lat, srid=4326)                                                                                                                            
-                queryset = queryset.filter(geom__isnull=False).annotate(                                                                                                              
-                    distance_m=Distance("geom", user_location)                                                                                                                        
-                ).filter(distance_m__lte=radius).order_by("distance_m")                                                                                                               
-            except (ValueError, TypeError):                                                                                                                                           
-                queryset = queryset.order_by('-created_at')                                                                                                                           
-        else:                                                                                                                                                                         
-            queryset = queryset.order_by('-created_at')                                                                                                                               
-                                                                                                                                                                                        
-        page = self.paginate_queryset(queryset)                                                                                                                                       
-        if page is not None:                                                                                                                                                          
-            serializer = self.get_serializer(page, many=True)                                                                                                                         
-            return self.get_paginated_response(serializer.data)                                                                                                                       
-                                                                                                                                                                                        
-        serializer = self.get_serializer(queryset, many=True)                                                                                                                         
-        return Response(serializer.data)                                                                                                                                              
+    def list(self, request, *args, **kwargs):
+        lat = self.request.query_params.get("lat")
+        lng = self.request.query_params.get("lng")
+        radius = float(self.request.query_params.get("radius", 5000))
 
+        queryset = self.get_queryset()
+
+        if lat is not None and lng is not None:
+            try:
+                lat, lng = float(lat), float(lng)
+                user_location = Point(lng, lat, srid=4326)
+                queryset = queryset.filter(geom__isnull=False).annotate(
+                    distance_m=Distance("geom", user_location)
+                ).filter(distance_m__lte=radius).order_by("distance_m")
+            except (ValueError, TypeError):
+                queryset = queryset.order_by('-created_at')
+        else:
+            queryset = queryset.order_by('-created_at')
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+        
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -129,22 +129,25 @@ class PathViewSet(viewsets.ModelViewSet):
         # 항상 PathSerializer를 사용해 완전한 객체 정보를 반환
         response_serializer = PathSerializer(instance, context={'request': request})
         return Response(response_serializer.data)
-                                                                                                                                                                                        
-    def perform_create(self, serializer):                                                                                                                                             
-        data = serializer.validated_data                                                                                                                                              
-        PathService.create_from_user_input(                                                                                                                                           
-            user_id=self.request.user.id,                                                                                                                                             
-            path_name=data.get("path_name"),                                                                                                                                          
-            path_comment=data.get("path_comment"),                                                                                                                                    
-            coords_json=data["coords"],                                                                                                                                               
-            start_time=data.get("start_time"),                                                                                                                                        
-            end_time=data.get("end_time"),                                                                                                                                            
-            level=data.get("level"),                                                                                                                                                  
-            distance=data.get("distance"),                                                                                                                                            
-            duration=data.get("duration"),                                                                                                                                            
-            thumbnail=data.get("thumbnail"),                                                                                                                                          
-            is_private=data.get("is_private"),                                                                                                                                        
-        )    
+
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        PathService.create_from_user_input(
+            user_id=self.request.user.id,
+            path_name=data.get("path_name"),
+            path_comment=data.get("path_comment"),
+            coords_json=data.get("coords"),
+            start_time=data.get("start_time"),
+            end_time=data.get("end_time"),
+            level=data.get("level"),
+            distance=data.get("distance"),
+            duration=data.get("duration"),
+            thumbnail=data.get("thumbnail"),
+            is_private=data.get("is_private"),
+            polyline=data.get("polyline"),
+            markers=data.get("markers"),
+        )
+    
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def mine(self, request):
         """
