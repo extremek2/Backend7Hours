@@ -12,13 +12,13 @@ from .permissions import IsOwnerOrReadOnly # 곧 정의할 커스텀 권한
 
 class PetListCreateView(generics.ListCreateAPIView):
     serializer_class = PetSerializer
-    # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     # 1. 목록 조회 필터링: 현재 로그인된 사용자의 반려견만 보여줍니다.
     def get_queryset(self):
         user = self.request.user
+        print(f"DEBUG: Fetching pets for user {user}")
         # 1. 미인증 사용자: 권한이 없으므로 빈 쿼리셋 반환
         if not user.is_authenticated:
             return Pet.objects.none()
@@ -34,6 +34,7 @@ class PetListCreateView(generics.ListCreateAPIView):
     #    PetSerializer의 create 메서드에서 이 요청 정보를 사용하여 owner를 자동 할당
     def perform_create(self, serializer):
         user = self.request.user
+        print(f"DEBUG: Creating pet for user {user}")
         
         # 임시: 인증되지 않은 경우 첫 번째 사용자를 owner로 설정
         if not user.is_authenticated:
