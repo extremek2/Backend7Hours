@@ -114,11 +114,20 @@ class PathViewSet(viewsets.ModelViewSet):
         
     def perform_create(self, serializer):
         data = serializer.validated_data
+        print(data)
+        # 1️⃣ coords → polyline 인코딩 (압축된 문자열)
+        coords = data.get("coords")
+        polyline_str = data.get("polyline")
+
+        # 클라이언트가 polyline으로 보내면 디코딩
+        if polyline_str:
+             coords = PathService.decode_polyline(polyline_str)
+        
         PathService.create_from_user_input(
             user_id=self.request.user.id,
             path_name=data.get("path_name"),
             path_comment=data.get("path_comment"),
-            coords_json=data["coords"],
+            coords_json=data.get("coords"),
             start_time=data.get("start_time"),
             end_time=data.get("end_time"),
             level=data.get("level"),
@@ -126,6 +135,8 @@ class PathViewSet(viewsets.ModelViewSet):
             duration=data.get("duration"),
             thumbnail=data.get("thumbnail"),
             is_private=data.get("is_private"),
+            polyline=data.get("polyline"),
+            markers=data.get("markers"),
         )
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])

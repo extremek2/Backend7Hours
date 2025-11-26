@@ -1,4 +1,5 @@
 import requests
+import polyline
 from django.contrib.gis.geos import LineString, Point
 from django.contrib.auth import get_user_model
 from django.contrib.gis.db.models.functions import Distance
@@ -6,7 +7,7 @@ from .models import Path
 from datetime import datetime
 from urllib.parse import unquote
 from geopy.distance import distance as geopy_distance
-
+from polyline import encode as polyline_encode
 
 User = get_user_model() # 런타임에서 CustomUser 클래스 반환
 
@@ -82,7 +83,11 @@ class PathService:
                 level=int(item.get("crsLevel", 2)),
                 is_private=False,
                 geom=geom,
+                # 여기 추가
+                polyline=polyline_encode([(c[1], c[0]) for c in PathService.fill_z_values(coords)]),  # (lat, lng)
+                markers=[{"lat": c[1], "lng": c[0], "z": c[2]} for c in PathService.fill_z_values(coords)]
             ))
+
             
         if new_paths:
             Path.objects.bulk_create(new_paths)
@@ -98,7 +103,7 @@ class PathService:
     def create_from_user_input(user_id, path_name=None, path_comment=None,
                         coords_json=None, start_time=None, end_time=None,
                         level=None, distance=None, duration=None, 
-                        thumbnail=None, is_private=None):
+                        thumbnail=None, is_private=None, polyline=None, markers=None):
         """사용자가 보낸 좌표를 저장 (JSON 객체, 서버에서 z값 채움)"""
         try:
             user = User.objects.get(id=user_id)
@@ -134,6 +139,9 @@ class PathService:
             thumbnail=thumbnail,
             is_private=is_private if is_private is not None else False,
             geom=geom,
+            # # ✅ 추가
+            polyline=polyline,
+            markers=markers  # 필요에 따라 필터링 가능
         )
         return path
 
@@ -275,3 +283,19 @@ class PathService:
 
             coords_3d.append((lon, lat, ele))  # GEOS는 (x=lon, y=lat, z)
         return coords_3d
+    
+    # --------------------------
+    # polyline 디코딩 함수 
+    # --------------------------
+    @staticmethod
+    def decode_polyline(polyline_str):
+        """
+        polyline 문자열 -> [(lat, lng, z), ...] 리스트로 변환
+        GEOS LineString용 (lon, lat) 튜플로 반환
+        """
+        try:
+            coords = polyline.decode(polyline_str)  # [(lat, lng), ...]
+            return [(lng, lat, 0.0) for lat, lng in coords]  # z=0.0
+        except Exception as e:
+            print(f"[Polyline 디코딩 오류] {e}")
+            return []
