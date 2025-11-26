@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os, json
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -134,6 +135,15 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': 'my-app-auth', # (선택) 쿠키에 저장할 이름
     'JWT_AUTH_REFRESH_COOKIE': 'my-app-refresh-token', # (선택)
     'JWT_AUTH_HTTPONLY': False, # 앱에서 토큰을 읽어야 하므로 False (보안 정책에 따라 True)
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
 }
 
 # 2. 유저 인증 방식 (이메일 vs 유저네임)
