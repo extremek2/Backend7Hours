@@ -112,13 +112,31 @@ class PathViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
         
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        # 유효성 검사용 Serializer (입력용)
+        # partial=True를 통해 PATCH 메서드도 처리 가능
+        update_serializer = UserPathUpdateSerializer(instance, data=request.data, partial=True)
+        update_serializer.is_valid(raise_exception=True)
+        self.perform_update(update_serializer)
+
+        # 최신 인스턴스 정보를 가져옴 (선택적이나, DB 트리거 등이 있을 경우 권장)
+        instance.refresh_from_db()
+
+        # 응답용 Serializer (출력용)
+        # 항상 PathSerializer를 사용해 완전한 객체 정보를 반환
+        response_serializer = PathSerializer(instance, context={'request': request})
+        return Response(response_serializer.data)
+
     def perform_create(self, serializer):
         data = serializer.validated_data
         PathService.create_from_user_input(
             user_id=self.request.user.id,
             path_name=data.get("path_name"),
             path_comment=data.get("path_comment"),
-            coords_json=data["coords"],
+            coords_json=data.get("coords"),
             start_time=data.get("start_time"),
             end_time=data.get("end_time"),
             level=data.get("level"),
@@ -126,6 +144,8 @@ class PathViewSet(viewsets.ModelViewSet):
             duration=data.get("duration"),
             thumbnail=data.get("thumbnail"),
             is_private=data.get("is_private"),
+            polyline=data.get("polyline"),
+            markers=data.get("markers"),
         )
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])

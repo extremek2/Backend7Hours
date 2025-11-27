@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     # [추가] 소셜 로그인 및 JWT 관련 앱
     # ------------------------------------------------
     'rest_framework.authtoken', # dj-rest-auth 사용 시 필수
+    'rest_framework_simplejwt.token_blacklist',
     'dj_rest_auth',             # 소셜 로그인 API 처리
     'django.contrib.sites',     # allauth가 의존
 
@@ -114,6 +115,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',  # IsAuthenticated
     ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
 }
 
 
@@ -130,6 +136,15 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': 'my-app-auth', # (선택) 쿠키에 저장할 이름
     'JWT_AUTH_REFRESH_COOKIE': 'my-app-refresh-token', # (선택)
     'JWT_AUTH_HTTPONLY': False, # 앱에서 토큰을 읽어야 하므로 False (보안 정책에 따라 True)
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
 }
 
 # 2. 유저 인증 방식 (이메일 vs 유저네임)

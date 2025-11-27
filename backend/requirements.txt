@@ -41,3 +41,6 @@ minio==7.2.7
 # --- 지리공간 데이터 처리  ---
 geopandas==1.0.1
 matplotlib==3.9.1
+
+
+polyline

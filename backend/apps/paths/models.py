@@ -32,6 +32,10 @@ class Path(BaseModel):
     thumbnail = models.CharField(max_length=255, null=True, blank=True)
     geom = LineStringField(dim=3, null=True, blank=True)  # 3D LineString (x=lon, y=lat, z=ele)
     
+    # ✅ 추가: 안드로이드 전송용 필드
+    polyline = models.TextField(null=True, blank=True)  # 인코딩된 좌표 문자열
+    markers = models.JSONField(null=True, blank=True)         # 마커 배열 (리스트 안의 리스트)
+
     # 댓글 역참조 설정
     comments = GenericRelation(Comment, related_query_name='path')
     
