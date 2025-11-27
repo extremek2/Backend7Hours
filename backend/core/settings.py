@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     # [추가] 소셜 로그인 및 JWT 관련 앱
     # ------------------------------------------------
     'rest_framework.authtoken', # dj-rest-auth 사용 시 필수
+    'rest_framework_simplejwt.token_blacklist',
     'dj_rest_auth',             # 소셜 로그인 API 처리
     'django.contrib.sites',     # allauth가 의존
 
@@ -138,7 +139,7 @@ REST_AUTH = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
