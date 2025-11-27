@@ -245,6 +245,7 @@ AWS_S3_SIGNATURE_VERSION = os.environ.get('AWS_S3_SIGNATURE_VERSION', 's3v4')
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
+AWS_QUERYSTRING_AUTH = False
 
 # CELERY 설정
 CELERY_BROKER_URL = "redis://redis:6379/0"
