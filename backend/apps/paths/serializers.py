@@ -9,6 +9,12 @@ class CoordSerializer(serializers.Serializer):
     lng = serializers.FloatField()
     # z는 서버에서 채움, 클라이언트는 보내지 않아도 됨
 
+    # 🔥 여기 추가하면 됨!
+class MarkerSerializer(serializers.Serializer):
+    lat = serializers.FloatField()
+    lng = serializers.FloatField()
+    memo = serializers.CharField(required=False, allow_blank=True)
+
 class UserPathCreateSerializer(serializers.Serializer):
     path_name = serializers.CharField(required=False, allow_blank=True)
     path_comment = serializers.CharField(required=False, allow_blank=True)
@@ -22,13 +28,7 @@ class UserPathCreateSerializer(serializers.Serializer):
     is_private = serializers.BooleanField(required=False, default=False)
     # 새로 추가: polyline / markers
     polyline = serializers.CharField(required=False, allow_blank=True)
-    markers = serializers.ListField(
-        child=serializers.ListField(
-            child=serializers.FloatField()
-        ),
-        required=False,
-        allow_empty=True
-    )
+    markers = MarkerSerializer(many=True, required=False, allow_empty=True)
 
 class UserPathUpdateSerializer(serializers.ModelSerializer):
 
@@ -63,12 +63,15 @@ class PathSerializer(serializers.ModelSerializer):
     bookmarks_count = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
 
+    # 🔥 markers 필드 추가
+    markers = serializers.SerializerMethodField()
+
     class Meta:
         model = Path
         fields = [
             "id", "source", "path_name", "path_comment", "level",
             "distance", "duration", "is_private", "thumbnail", "coords", 
-            "auth_user_nickname", "comments", "bookmarks_count", "is_bookmarked"
+            "auth_user_nickname", "comments", "bookmarks_count", "is_bookmarked", "markers" 
         ]
 
     def get_coords(self, obj):
@@ -111,19 +114,31 @@ class PathSerializer(serializers.ModelSerializer):
         if user and user.is_authenticated:
             return obj.bookmarks.filter(user=user).exists()
         return False
+    
+    def get_markers(self, obj):
+        import json
+
+        if not obj.markers:
+            return []
+
+        if isinstance(obj.markers, str):
+            return json.loads(obj.markers)  # DB에 문자열이면 파싱
+
+        return obj.markers   # 이미 리스트 형태면 그대로
 
 class BookmarkedPathSerializer(serializers.ModelSerializer):
     auth_user_nickname = serializers.CharField(source='auth_user.nickname', read_only=True)
     distance = serializers.SerializerMethodField()
     bookmarks_count = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
+    markers = serializers.SerializerMethodField()
 
     class Meta:
         model = Path
         fields = [
             "id", "source", "path_name", "path_comment", "level",
             "distance", "duration", "is_private", "thumbnail",
-            "auth_user_nickname", "bookmarks_count", "is_bookmarked"
+            "auth_user_nickname", "bookmarks_count", "is_bookmarked","markers"
         ]
 
     def get_distance(self, obj):
@@ -148,3 +163,14 @@ class BookmarkedPathSerializer(serializers.ModelSerializer):
         if user and user.is_authenticated:
             return obj.bookmarks.filter(user=user).exists()
         return False
+    
+    def get_markers(self, obj):
+        import json
+
+        if not obj.markers:
+            return []
+
+        if isinstance(obj.markers, str):
+            return json.loads(obj.markers)
+
+        return obj.markers
