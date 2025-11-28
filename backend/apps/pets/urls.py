@@ -3,10 +3,16 @@ from .views import (
     PetListCreateView,
     PetRetrieveUpdateDestroyView,
     PetBreedListView,
+    InvitationCodeCreateView,
+    PetLocationCreateView,
 )
 from .event_urls import urlpatterns as event_urls
 
 urlpatterns = [
+    # 초대 코드 생성
+    path('invitations/', InvitationCodeCreateView.as_view(), name='create-invitation'),
+    # 위치 정보 생성(업데이트)
+    path('locations/', PetLocationCreateView.as_view(), name='pet-location-create'),
     # 품종 목록
     path('breeds/', PetBreedListView.as_view(), name='pet-breed-list'),
     # 반려견 목록 및 등록
