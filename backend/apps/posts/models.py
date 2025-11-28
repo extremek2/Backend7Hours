@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.db import models
-from core.models import BaseModel
-from core.models import Comment, Like, Bookmark
+from core.models import BaseModel, Comment, Like, Bookmark
 from core.utils import UploadFilePathGenerator
 from core.custom_storages import PostsStorage
 from django.contrib.contenttypes.fields import GenericRelation
@@ -28,7 +27,7 @@ class Post(BaseModel):
         default=POST_REVIEW
     )
     title = models.CharField(max_length=255)
-    content = content = models.TextField()
+    content = models.TextField()
     
     image = models.ImageField(
         upload_to=UploadFilePathGenerator('post_images', user_field='auth_user'),
@@ -36,6 +35,13 @@ class Post(BaseModel):
         null=True,
         blank=True
     )
+    
+    # 카운트 필드
+    view_count = models.PositiveIntegerField(default=0, db_index=True)
+    comment_count = models.PositiveIntegerField(default=0, db_index=True)
+    like_count = models.PositiveIntegerField(default=0, db_index=True)
+    bookmark_count = models.PositiveIntegerField(default=0, db_index=True)
+    
     
     # 1. 댓글 역참조 설정
     comments = GenericRelation(Comment, related_query_name='post')
@@ -45,3 +51,15 @@ class Post(BaseModel):
     
     # 3. 즐겨찾기 역참조 설정
     bookmarks = GenericRelation(Bookmark, related_query_name='post')
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['-view_count']),
+            models.Index(fields=['-like_count']),
+            models.Index(fields=['post_type', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return self.title
