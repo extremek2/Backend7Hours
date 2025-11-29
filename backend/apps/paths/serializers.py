@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Path
 from core.models import Comment, Bookmark
+from core.serializers import CommentSerializer
 
 
 class CoordSerializer(serializers.Serializer):
@@ -37,18 +38,18 @@ class UserPathUpdateSerializer(serializers.ModelSerializer):
         fields = ["path_name", "path_comment", "level", "distance", "duration", "thumbnail", "is_private"]
 
 # 댓글 작성자 정보 Serializer
-class AuthorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = get_user_model()
-        fields = ['id', 'nickname']
+# class AuthorSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = get_user_model()
+#         fields = ['id', 'nickname']
 
-# 댓글 Serializer
-class CommentSerializer(serializers.ModelSerializer):
-    author = AuthorSerializer(read_only=True)
+# # 댓글 Serializer
+# class CommentSerializer(serializers.ModelSerializer):
+#     author = AuthorSerializer(read_only=True)
 
-    class Meta:
-        model = Comment
-        fields = ['id', 'author', 'content', 'created_at']
+#     class Meta:
+#         model = Comment
+#         fields = ['id', 'author', 'content', 'created_at']
 
 class PathSerializer(serializers.ModelSerializer):
     
@@ -60,7 +61,7 @@ class PathSerializer(serializers.ModelSerializer):
     comments = CommentSerializer(many=True, read_only=True)
     
     # 즐겨찾기 관련 필드 추가
-    bookmarks_count = serializers.SerializerMethodField()
+    bookmark_count = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
 
     # 🔥 markers 필드 추가
@@ -99,9 +100,9 @@ class PathSerializer(serializers.ModelSerializer):
         
         return 0.0
 
-    def get_bookmarks_count(self, obj):
+    def get_bookmark_count(self, obj):
         # ViewSet에서 annotate로 전달된 값을 사용하는 것이 효율적
-        return getattr(obj, 'bookmarks_count', obj.bookmarks.count())
+        return getattr(obj, 'bookmark_count', obj.bookmarks.count())
 
     def get_is_bookmarked(self, obj):
         # ViewSet에서 annotate로 전달된 값을 사용하는 것이 효율적

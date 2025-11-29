@@ -41,6 +41,7 @@ class UserListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = UserSerializer
     # permission_classes = [permissions.IsAuthenticated]
     permission_classes = [permissions.AllowAny]  # 개발 편의를 위해 인증 없이 허용
+    parser_classes = [MultiPartParser, FormParser]
     
     
     def post(self, request, *args, **kwargs):
@@ -80,6 +81,7 @@ class UserRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
 
 
 class UserRegisterView(generics.CreateAPIView):
@@ -89,7 +91,8 @@ class UserRegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserRegisterSerializer
     permission_classes = [permissions.AllowAny]
-
+    parser_classes = [MultiPartParser, FormParser]
+    
 
 class UserBookmarkListView(generics.ListAPIView):
     """

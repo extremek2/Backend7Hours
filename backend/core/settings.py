@@ -104,7 +104,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# 토큰 인증
+# 토큰 인증 + 권한 설정 + 날짜 형식
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -120,6 +120,8 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
     ],
+    'DATETIME_FORMAT': "%Y-%m-%d %H:%M:%S" # 기본 날짜 형식 (밀리초 제거)
+    
 }
 
 

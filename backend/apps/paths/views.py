@@ -16,8 +16,9 @@ from .serializers import (
     UserPathCreateSerializer,
     UserPathUpdateSerializer,
     PathSerializer,
-    CommentSerializer,
+    
 )
+from core.serializers import CommentSerializer
 from .services import PathService
 from .permissions import IsOwnerOrReadOnly
 
@@ -71,7 +72,7 @@ class PathViewSet(viewsets.ModelViewSet):
             )
         
         queryset = queryset.annotate(
-            bookmarks_count=Count('bookmarks')
+            bookmark_count=Count('bookmarks')
         )
         
         return queryset
@@ -186,14 +187,14 @@ class PathViewSet(viewsets.ModelViewSet):
         if not created:
             bookmark.delete()
             return Response({
-                'bookmarked': False,
-                'bookmarks_count': path.bookmarks.count(),
+                'is_bookmarked': False,
+                'bookmark_count': path.bookmarks.count(),
                 'status': 'bookmark removed'
             }, status=status.HTTP_200_OK)
 
         return Response({
-            'bookmarked': True,
-            'bookmarks_count': path.bookmarks.count(),
+            'is_bookmarked': True,
+            'bookmark_count': path.bookmarks.count(),
             'status': 'bookmark added'
         }, status=status.HTTP_201_CREATED)
         

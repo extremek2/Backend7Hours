@@ -1,5 +1,7 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from core.utils import UploadFilePathGenerator
+from core.custom_storages import UsersStorage
 import uuid
 
 def generate_unique_nickname():
@@ -48,7 +50,8 @@ class CustomUser(AbstractUser):
     
     # MinIO 설정을 settings.py에서 했다면, 자동으로 MinIO에 저장됩니다.
     profile_image = models.ImageField(
-        upload_to='profile_images/', 
+        upload_to=UploadFilePathGenerator('profile', user_field='self'),
+        storage=UsersStorage(),
         blank=True, 
         null=True, 
         verbose_name="프로필 이미지"

@@ -2,12 +2,15 @@ import os
 import uuid
 
 
+# MINIO에 이미지 URL 등록
 class UploadFilePathGenerator:
-    def __init__(self, path, user_field='user'):
+    def __init__(self, path, user_field=None):
         """
         Args:
             path: 기본 업로드 경로
-            user_field: user_id를 가져올 필드명 (기본: 'user')
+            user_field: user_id를 가져올 필드명
+                        - ForeignKey가 있는 모델: 'auth_user' 등
+                        - User 자신: None 또는 'self'
         """
         self.path = path
         self.user_field = user_field
@@ -25,6 +28,11 @@ class UploadFilePathGenerator:
     
     def _get_user_id(self, instance):
         """인스턴스에서 user_id를 추출"""
+        # User 자신인 경우
+        if self.user_field is None or self.user_field == 'self':
+            return getattr(instance, 'id', None)
+        
+        # ForeignKey 경로를 따라가서 id 추출
         try:
             # user_field 경로를 따라가기 (예: 'post.author')
             obj = instance

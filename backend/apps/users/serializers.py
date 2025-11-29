@@ -44,7 +44,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['nickname', 'full_name', 'email', 'password', 'password_verification']
+        fields = ['nickname', 'full_name', 'email', 'profile_image', 'password', 'password_verification']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_verification']:
@@ -57,6 +57,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             nickname=validated_data.get('nickname', ''),
             full_name=validated_data.get('full_name', ''),
             email=validated_data['email'],
+            profile_image=validated_data.get('profile_image', None),
         )
         user.set_password(validated_data['password'])
         user.save()
