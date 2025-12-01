@@ -53,6 +53,7 @@ class PathSerializer(serializers.ModelSerializer):
     auth_user_nickname = serializers.CharField(source='auth_user.nickname', read_only=True)
     coords = serializers.SerializerMethodField()
     distance = serializers.SerializerMethodField()
+    distance_from_me = serializers.SerializerMethodField()
     
     # Nested Serializer로 댓글 목록 추가
     comments = CommentSerializer(many=True, read_only=True)
@@ -69,7 +70,8 @@ class PathSerializer(serializers.ModelSerializer):
         fields = [
             "id", "source", "path_name", "path_comment", "level",
             "distance", "duration", "is_private", "thumbnail", "coords", 
-            "auth_user_nickname", "comments", "bookmark_count", "is_bookmarked", "markers" 
+            "auth_user_nickname", "comments", "bookmark_count", "is_bookmarked", "markers",
+            "distance_from_me"
         ]
 
     def get_coords(self, obj):
@@ -81,6 +83,13 @@ class PathSerializer(serializers.ModelSerializer):
         ]
 
     def get_distance(self, obj):
+        # 모델의 distance 필드를 항상 사용
+        if obj.distance is not None:
+            return float(obj.distance)
+        
+        return 0.0
+
+    def get_distance_from_me(self, obj):
         # annotate(distance_m=Distance(...))에서 주입된 거리값 사용
         distance_m = getattr(obj, "distance_m", None)
         if distance_m is not None:
@@ -90,12 +99,8 @@ class PathSerializer(serializers.ModelSerializer):
             except AttributeError:
                 return float(distance_m)
         
-        
-        # 2. distance_m이 없으면 모델의 distance 필드 사용 (POST/PATCH 요청용)
-        if obj.distance is not None:
-            return float(obj.distance)
-        
-        return 0.0
+        # distance_m이 없으면 None 반환
+        return None
 
     def get_bookmark_count(self, obj):
         # ViewSet에서 annotate로 전달된 값을 사용하는 것이 효율적
@@ -127,6 +132,7 @@ class PathSerializer(serializers.ModelSerializer):
 class BookmarkedPathSerializer(serializers.ModelSerializer):
     auth_user_nickname = serializers.CharField(source='auth_user.nickname', read_only=True)
     distance = serializers.SerializerMethodField()
+    # distance_from_me = serializers.SerializerMethodField()
     bookmarks_count = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
     markers = serializers.SerializerMethodField()
@@ -136,10 +142,16 @@ class BookmarkedPathSerializer(serializers.ModelSerializer):
         fields = [
             "id", "source", "path_name", "path_comment", "level",
             "distance", "duration", "is_private", "thumbnail",
-            "auth_user_nickname", "bookmarks_count", "is_bookmarked","markers"
+            "auth_user_nickname", "bookmarks_count", "is_bookmarked","markers",
+            # "distance_from_me"
         ]
 
     def get_distance(self, obj):
+    #     if obj.distance is not None:
+    #         return float(obj.distance)
+    #     return 0.0
+    
+    # def get_distance_from_me(self, obj):
         distance_m = getattr(obj, "distance_m", None)
         if distance_m is not None:
             try:
@@ -149,6 +161,7 @@ class BookmarkedPathSerializer(serializers.ModelSerializer):
         if obj.distance is not None:
             return float(obj.distance)
         return 0.0
+        # return None
 
     def get_bookmarks_count(self, obj):
         return getattr(obj, 'bookmarks_count', obj.bookmarks.count())
