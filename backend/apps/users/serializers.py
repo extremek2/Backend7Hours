@@ -94,6 +94,15 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return user
 
 class UserSerializer(serializers.ModelSerializer):
+    is_pet = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'email', 'full_name', 'nickname']
+        fields = ['id', 'email', 'full_name', 'nickname', 'is_pet']
+
+    def get_is_pet(self, obj):
+        """
+        Check if the user is linked as a pet.
+        'linked_as_pet' is the related_name from the OneToOneField in the Pet model.
+        """
+        return hasattr(obj, 'linked_as_pet')
