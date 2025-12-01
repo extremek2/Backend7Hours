@@ -1,9 +1,6 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
 from .models import Path
-from core.models import Comment, Bookmark
 from core.serializers import CommentSerializer
-
 
 class CoordSerializer(serializers.Serializer):
     lat = serializers.FloatField()
@@ -72,7 +69,7 @@ class PathSerializer(serializers.ModelSerializer):
         fields = [
             "id", "source", "path_name", "path_comment", "level",
             "distance", "duration", "is_private", "thumbnail", "coords", 
-            "auth_user_nickname", "comments", "bookmarks_count", "is_bookmarked", "markers" 
+            "auth_user_nickname", "comments", "bookmark_count", "is_bookmarked", "markers" 
         ]
 
     def get_coords(self, obj):

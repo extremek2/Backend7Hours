@@ -238,17 +238,20 @@ class PostLikeToggleView(APIView):
         if created:
             is_liked = True
             http_status = status.HTTP_201_CREATED
+            response_status = 'like added'
         else:
             like.delete()
             is_liked = False
             http_status = status.HTTP_200_OK
+            response_status = 'like removed'
         
         # Redis 카운트 조회
         like_count = _get_redis_count(post.pk, 'like')
         
         return Response({
             'is_liked': is_liked, 
-            'like_count': like_count
+            'like_count': like_count,
+            'status': response_status
         }, status=http_status)
 
 

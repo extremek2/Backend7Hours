@@ -1,11 +1,8 @@
 from rest_framework import serializers
-
+from django.contrib.auth import get_user_model
 from core.models import Bookmark, Comment
 from apps.paths.models import Path
 from apps.posts.models import Post
-from apps.paths.serializers import PathSerializer, AuthorSerializer, BookmarkedPathSerializer
-from apps.posts.serializers import PostSerializer
-
 
 class BookmarkSerializer(serializers.ModelSerializer):
     """
@@ -27,12 +24,14 @@ class BookmarkSerializer(serializers.ModelSerializer):
         content_type_name = None
 
         if isinstance(obj.content_object, Path):
+            from apps.paths.serializers import PathSerializer
             # context를 전달하여 PathSerializer 내부에서 request 객체 등에 접근할 수 있도록 함
             data = PathSerializer(obj.content_object, context=self.context).data
             content_type_name = 'path'
         if isinstance(obj.content_object, Post):
-            data = PostSerializer(obj.content_object, context=self.context).data
-            content_type_name
+            from apps.posts.serializers import PostListSerializer
+            data = PostListSerializer(obj.content_object, context=self.context).data
+            content_type_name = 'post'
         
         if data is not None:
             # 직렬화된 데이터에 타입 이름 필드를 추가합니다.
@@ -41,6 +40,12 @@ class BookmarkSerializer(serializers.ModelSerializer):
         # 다른 타입의 객체가 추가될 경우를 대비
         return data
 
+# 댓글 작성자 정보 Serializer
+class AuthorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = ['id', 'nickname']
+        
 class CommentSerializer(serializers.ModelSerializer):
     """
     어떤 모델이든 댓글 객체를 직렬화하는 범용 Serializer.
