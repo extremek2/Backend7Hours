@@ -153,6 +153,7 @@ class PostListSerializer(RedisCountMixin, UserStatusMixin, serializers.ModelSeri
     # 작성자 정보
     auth_id = serializers.ReadOnlyField(source='auth_user.id')
     auth_name = serializers.ReadOnlyField(source='auth_user.nickname')
+    auth_profile_image = serializers.SerializerMethodField()
     
     # Redis 카운트 필드
     view_count = serializers.SerializerMethodField()
@@ -167,7 +168,7 @@ class PostListSerializer(RedisCountMixin, UserStatusMixin, serializers.ModelSeri
     class Meta:
         model = Post
         fields = [
-            'id', 'auth_id', 'auth_name', 
+            'id', 'auth_id', 'auth_name', 'auth_profile_image', 
             'post_type', 'title', 'image',
             'view_count', 'comment_count', 'like_count', 'bookmark_count',
             'is_liked', 'is_bookmarked',
@@ -199,6 +200,25 @@ class PostListSerializer(RedisCountMixin, UserStatusMixin, serializers.ModelSeri
     def get_is_bookmarked(self, obj):
         """현재 사용자가 북마크 했는지 확인"""
         return self._check_user_status(obj, Bookmark, 'user_bookmarks')
+    
+    # ---- 사용자 프로필 이미지 확인 메서드 ----
+    def get_auth_profile_image(self, obj):
+        # obj: 현재 직렬화 중인 Post 인스턴스 (Post 객체)
+        
+        # 1. Post 객체에서 auth_user 객체에 접근
+        auth_user = obj.auth_user
+        
+        # 2. auth_user가 존재하고 profile_image 필드에 값이 있는지 확인
+        if auth_user and auth_user.profile_image:
+            
+            # 3. profile_image가 실제 파일을 가지고 있는지 (경로가 비어있지 않은지) 확인
+            # .name 속성을 통해 파일 경로가 설정되어 있는지 확인합니다.
+            if auth_user.profile_image.name:
+                # 파일이 연결되어 있다면, 안전하게 .url 반환
+                return auth_user.profile_image.url
+        
+        # auth_user가 없거나, profile_image 필드가 null 또는 ''일 경우 None 반환
+        return None
 
 
 # ============================================================================
