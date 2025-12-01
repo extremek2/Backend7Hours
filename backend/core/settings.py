@@ -35,6 +35,10 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
+    'apps.webrtc', # WebRTC 시그널링 앱
+    
     # 프로젝트용 추가 앱
     'core',
     'apps.users',
@@ -300,4 +304,15 @@ SIMPLE_JWT = {
     
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
+}
+
+# --- Channels (WebRTC 시그널링용) ---
+ASGI_APPLICATION = 'core.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.environ.get('REDIS_HOST', 'redis'), 6379)],
+        },
+    },
 }
