@@ -1,11 +1,15 @@
-from rest_framework import generics, permissions
+from django.db import transaction
+from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from .models import Pet, PetBreed, PetEvent
+from rest_framework.response import Response
+from .models import Pet, PetBreed, PetEvent, InvitationCode, PetLocation
 from .serializers import (
     PetSerializer, 
     PetBreedSerializer,
     PetEventSerializer,
+    InvitationCodeSerializer,
+    PetLocationSerializer,
 )
 from .permissions import IsOwnerOrReadOnly # 곧 정의할 커스텀 권한
 
@@ -102,3 +106,36 @@ class PetEventRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = PetEvent.objects.all()
     serializer_class = PetEventSerializer
     permission_classes = [IsOwnerOrReadOnly]
+
+class InvitationCodeCreateView(generics.CreateAPIView):
+    """
+    인증된 사용자를 위해 펫 초대 코드를 생성합니다.
+    """
+    serializer_class = InvitationCodeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # 요청을 보낸 사용자를 created_by 필드에 할당하여 초대 코드를 생성합니다.
+        serializer.save(created_by=self.request.user)
+
+class PetLocationCreateView(generics.CreateAPIView):
+    """
+    '펫'으로 등록된 사용자의 위치 정보를 생성(업데이트)합니다.
+    """
+    serializer_class = PetLocationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        # 요청을 보낸 사용자가 'linked_user'로 등록된 Pet 객체를 찾습니다.
+        try:
+            pet_instance = Pet.objects.get(linked_user=self.request.user)
+        except Pet.DoesNotExist:
+            raise PermissionDenied("You are not registered as a trackable pet.")
+
+        # 새 위치 정보를 생성하고, 찾은 Pet 인스턴스와 연결합니다.
+        new_location = serializer.save(pet=pet_instance)
+
+        # Pet 모델의 'last_location' 필드를 방금 생성된 위치로 업데이트합니다.
+        pet_instance.last_location = new_location
+        pet_instance.save(update_fields=['last_location', 'updated_at'])

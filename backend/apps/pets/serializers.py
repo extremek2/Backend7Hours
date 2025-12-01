@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import Pet, PetBreed, PetEvent, PetCheckup
+from .models import Pet, PetBreed, PetEvent, PetCheckup, InvitationCode, PetLocation
 
 # pet_breed
 class PetBreedSerializer(serializers.ModelSerializer):
@@ -8,28 +8,48 @@ class PetBreedSerializer(serializers.ModelSerializer):
         model = PetBreed
         fields = ['id', 'category', 'breed_name']
 
+# PetLocation
+class PetLocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PetLocation
+        fields = [
+            'latitude', 
+            'longitude', 
+            'accuracy', 
+            'battery_level',
+            'created_at'
+        ]
+        read_only_fields = ['created_at']
+
 # pet        
 class PetSerializer(serializers.ModelSerializer):
     # 1. ID 대신 'breed_name' 문자열로 통신
     breed = serializers.SlugRelatedField(
         queryset=PetBreed.objects.all(),
         slug_field='breed_name',
-        required=True
+        required=False, # 펫으로 등록된 사용자는 품종이 없을 수 있음
+        allow_null=True
     )
     
     # 2. owner의 user email 출력
     owner = serializers.CharField(source='owner.email', read_only=True)
+    
+    # 3. 최근 위치 정보를 보여주기 위한 중첩 Serializer
+    last_location = PetLocationSerializer(read_only=True)
+    # 4. 연결된 사용자 계정 정보를 보여줌
+    linked_user = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = Pet
         # API에서 사용할 필드 목록 정의
         fields = [
             'id', 'owner', 'name', 'gender', 'birthday', 
-            'neutering', 'breed', 'image'
+            'neutering', 'breed', 'image',
+            'linked_user', 'last_location'
         ]
         read_only_fields = ['owner'] # 명시적으로 owner 필드는 수정 불가
 
-    # 3. 추가 로직: 등록/수정 시 현재 로그인한 사용자를 owner로 자동 할당
+    # 5. 추가 로직: 등록/수정 시 현재 로그인한 사용자를 owner로 자동 할당
     def create(self, validated_data):
         if 'owner' not in validated_data:
             user = self.context.get('request').user
@@ -45,6 +65,13 @@ class PetSerializer(serializers.ModelSerializer):
                 validated_data['owner'] = user
         
         return super().create(validated_data)
+
+# InvitationCode
+class InvitationCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvitationCode
+        fields = ['code']
+        read_only_fields = ['code']
 
 # pet_checkup
 class PetCheckupSerializer(serializers.ModelSerializer):

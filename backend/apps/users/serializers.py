@@ -2,6 +2,9 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.db import transaction
+from django.utils import timezone
+from apps.pets.models import Pet, InvitationCode
 
 User = get_user_model()
 
@@ -41,18 +44,31 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password_verification = serializers.CharField(write_only=True, required=True)
+    invitation_code = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = User
-        fields = ['nickname', 'full_name', 'email', 'profile_image', 'password', 'password_verification']
+        fields = ['nickname', 'full_name', 'email', 'profile_image', 'password', 'password_verification', 'invitation_code']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_verification']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
+        
+        invitation_code = attrs.get('invitation_code')
+        if invitation_code:
+            try:
+                code_obj = InvitationCode.objects.get(code=invitation_code)
+                if not code_obj.is_valid():
+                    raise serializers.ValidationError({"invitation_code": "만료되었거나 이미 사용된 초대 코드입니다."})
+            except InvitationCode.DoesNotExist:
+                raise serializers.ValidationError({"invitation_code": "유효하지 않은 초대 코드입니다."})
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
+        invitation_code_str = validated_data.pop('invitation_code', None)
         validated_data.pop('password_verification')
+        
         user = User.objects.create(
             nickname=validated_data.get('nickname', ''),
             full_name=validated_data.get('full_name', ''),
@@ -61,6 +77,21 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data['password'])
         user.save()
+
+        if invitation_code_str:
+            code_obj = InvitationCode.objects.get(code=invitation_code_str)
+            inviting_user = code_obj.created_by
+
+            Pet.objects.create(
+                owner=inviting_user,
+                linked_user=user,
+                name=user.nickname
+            )
+
+            code_obj.used_by = user
+            code_obj.used_at = timezone.now()
+            code_obj.save()
+            
         return user
 
 class UserSerializer(serializers.ModelSerializer):

@@ -1,3 +1,6 @@
+import secrets
+from datetime import timedelta
+from django.utils import timezone
 from core.models import BaseModel, BaseScheduleModel
 from django.db import models
 from django.conf import settings
@@ -68,6 +71,24 @@ class Pet(BaseModel):
         blank=True
     )
 
+    last_location = models.OneToOneField(
+        'pets.PetLocation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='최근 위치'
+    )
+    
+    linked_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='linked_as_pet',
+        verbose_name='연결된 사용자 계정'
+    )
+
     class Meta:
         db_table = 'pet'
         verbose_name = '반려견'
@@ -78,8 +99,90 @@ class Pet(BaseModel):
 
     def __str__(self):
         return f"{self.owner.username}의 {self.name}"
-    
-    
+
+# 신규: 반려견 위치 추적 모델
+class PetLocation(BaseModel):
+    pet = models.ForeignKey(
+        Pet,
+        on_delete=models.CASCADE,
+        related_name='locations',
+        verbose_name='반려견'
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        verbose_name='위도'
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        verbose_name='경도'
+    )
+    accuracy = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="위치 정확도 (미터 단위)",
+        verbose_name='정확도'
+    )
+    battery_level = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="GPS 장치의 배터리 잔량 (%)",
+        verbose_name='배터리 잔량'
+    )
+
+    class Meta:
+        db_table = 'pet_location'
+        verbose_name = '반려견 위치'
+        verbose_name_plural = '반려견 위치 기록'
+        ordering = ['pet', '-created_at']
+        indexes = [
+            models.Index(fields=['pet', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.pet.name}의 위치 at {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+
+def default_expires_at():
+    # 코드는 생성 후 24시간 동안 유효
+    return timezone.now() + timedelta(hours=24)
+
+def generate_invitation_code():
+    return secrets.token_urlsafe(16)
+
+class InvitationCode(BaseModel):
+    """펫 등록 초대를 위한 일회성 초대 코드 모델"""
+    code = models.CharField(max_length=32, unique=True, default=generate_invitation_code)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='generated_invitations',
+        verbose_name='생성한 사용자'
+    )
+    expires_at = models.DateTimeField(default=default_expires_at, verbose_name='만료 시각')
+    used_at = models.DateTimeField(null=True, blank=True, verbose_name='사용 시각')
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='used_invitation',
+        verbose_name='사용자'
+    )
+
+    def is_valid(self):
+        """코드가 유효한지 (사용되지 않았고, 만료되지 않았는지) 확인"""
+        return self.used_by is None and timezone.now() < self.expires_at
+
+    class Meta:
+        db_table = 'pet_invitation_code'
+        verbose_name = '펫 초대 코드'
+        verbose_name_plural = '펫 초대 코드 목록'
+
+    def __str__(self):
+        return f"Code for {self.created_by.email} ({self.code})"
+
+
 # 반려견 활동 기록
 # 이벤트 타입 분류 CHOICE 리스트
 CHECKUP = 'CHECKUP'
