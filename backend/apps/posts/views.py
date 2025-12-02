@@ -1,11 +1,12 @@
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Prefetch, F
 from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from .models import Post
 from core.models import Comment, Like, Bookmark
 from core.views import BaseCommentViewSet
@@ -110,7 +111,8 @@ def _get_redis_count(post_pk, type_name):
 # ============================================================================
 class PostListCreateView(generics.ListCreateAPIView):
     """게시글 목록 조회 및 생성"""
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         queryset = Post.objects.select_related('auth_user')
@@ -145,11 +147,6 @@ class PostListCreateView(generics.ListCreateAPIView):
             return PostWriteSerializer
         return PostListSerializer
     
-    def get_permissions(self):
-        if self.request.method == 'POST':
-            return [IsAuthenticated()]
-        return [AllowAny()]
-    
     def perform_create(self, serializer):
         serializer.save(auth_user=self.request.user)
 
@@ -159,6 +156,10 @@ class PostListCreateView(generics.ListCreateAPIView):
 # ============================================================================
 class PostRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     """게시글 상세 조회, 수정, 삭제"""
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    queryset = Post.objects.all()
+    
     queryset = Post.objects.all()
     
     def get_serializer_class(self):
@@ -208,7 +209,6 @@ class PostRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         # 객체 가져오기
         instance = queryset.first()
         if not instance:
-            from django.http import Http404
             raise Http404("Post not found")
         
         # 권한 체크
@@ -297,6 +297,7 @@ class PostBookmarkToggleView(APIView):
 # 5. 댓글 ViewSet
 # ============================================================================
 class PostCommentViewSet(BaseCommentViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     """게시글에 종속된 댓글 목록, 생성, 상세 조회, 수정, 삭제"""
     parent_field = 'post'
     parent_lookup_kwarg = 'post_pk'
@@ -346,9 +347,20 @@ class PostCommentViewSet(BaseCommentViewSet):
             raise serializers.ValidationError(
                 {"detail": "Post ID (PK)가 URL에 누락되었습니다."}
             )
-
-        post_content_type = ContentType.objects.get_for_model(self.parent_model)
-
+        # 2. 보안 및 유효성 검사: Post가 실제로 존재하는지 확인
+        try:
+            # get_object_or_404를 사용하여 Post가 없으면 404를 반환
+            post_instance = get_object_or_404(Post, pk=parent_id) 
+        except Exception:
+            # Post 모델이 아닐 경우의 예외 처리 (self.parent_model이 Post가 아닐 경우)
+            raise serializers.ValidationError(
+                {"detail": "연결하려는 부모 객체(게시물)를 찾을 수 없습니다."}
+            )
+        
+        # 3. ContentType 가져오기
+        post_content_type = ContentType.objects.get_for_model(Post)
+        # 4. 사용자 인증 확인 (IsAuthenticated가 ViewSet에 있다면 이 로직은 불필요하지만 안전을 위해 유지)
+        
         serializer.save(
             author=self.request.user, 
             content_type=post_content_type, 

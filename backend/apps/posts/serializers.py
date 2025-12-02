@@ -194,10 +194,18 @@ class PostListSerializer(RedisCountMixin, UserStatusMixin, serializers.ModelSeri
     
     # ---- 사용자 상태 확인 메서드 ----
     def get_is_liked(self, obj):
+        request = self.context.get('request', None)
+        user = getattr(request, 'user', None)
+        if user is None or user.is_anonymous:
+            return False
         """현재 사용자가 좋아요 했는지 확인"""
         return self._check_user_status(obj, Like, 'user_likes')
     
     def get_is_bookmarked(self, obj):
+        request = self.context.get('request', None)
+        user = getattr(request, 'user', None)
+        if user is None or user.is_anonymous:
+            return False
         """현재 사용자가 북마크 했는지 확인"""
         return self._check_user_status(obj, Bookmark, 'user_bookmarks')
     
@@ -282,7 +290,7 @@ class PostWriteSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Post
-        fields = ['post_type', 'title', 'content', 'image']
+        fields = ['id', 'post_type', 'title', 'content', 'image']
     
     def validate_title(self, value):
         """제목 유효성 검사"""
