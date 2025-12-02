@@ -112,7 +112,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'full_name', 'nickname', 'profile_image', 'is_pet']
+        fields = ['id', 'email', 'full_name', 'nickname', 'profile_image']
 
         # [중요] 이메일이나 ID는 수정 못하게 '읽기 전용'으로 설정합니다.
         read_only_fields = ['id', 'email', 'full_name']
@@ -121,10 +121,3 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
             'profile_image': {'required': False},
             'nickname': {'required': False},
         }
-
-    def get_is_pet(self, obj):
-        """
-        Check if the user is linked as a pet.
-        'linked_as_pet' is the related_name from the OneToOneField in the Pet model.
-        """
-        return hasattr(obj, 'linked_as_pet')

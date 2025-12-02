@@ -37,7 +37,7 @@ class PetSerializer(serializers.ModelSerializer):
     # 3. 최근 위치 정보를 보여주기 위한 중첩 Serializer
     last_location = PetLocationSerializer(read_only=True)
     # 4. 연결된 사용자 계정 정보를 보여줌
-    linked_user = serializers.StringRelatedField(read_only=True)
+    linked_user = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Pet
