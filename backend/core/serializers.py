@@ -25,8 +25,10 @@ class BookmarkSerializer(serializers.ModelSerializer):
 
         if isinstance(obj.content_object, Path):
             from apps.paths.serializers import PathSerializer
-            # context를 전달하여 PathSerializer 내부에서 request 객체 등에 접근할 수 있도록 함
-            data = PathSerializer(obj.content_object, context=self.context).data
+            context = self.context.copy()
+            context['exclude_coords'] = True
+            context['exclude_comments'] = True  # 댓글 제외
+            data = PathSerializer(obj.content_object, context=context).data
             content_type_name = 'path'
         if isinstance(obj.content_object, Post):
             from apps.posts.serializers import PostListSerializer

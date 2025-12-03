@@ -74,6 +74,13 @@ class PathSerializer(serializers.ModelSerializer):
             "distance_from_me"
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.context.get('exclude_coords'):
+            self.fields.pop('coords', None)
+        if self.context.get('exclude_comments'):
+            self.fields.pop('comments', None)
+
     def get_coords(self, obj):
         if getattr(obj, "geom", None) is None:
             return []
