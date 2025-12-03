@@ -3,38 +3,11 @@ set -e
 
 
 echo "🚀 Starting container setup..."
-echo "🔧 Environment loaded with DB_ENGINE=${DB_ENGINE}"
 
-# DB 엔진별 동적 변수 설정
-DB_PORT_VAR="DB_PORT_${DB_ENGINE}"
-DB_PKG_VAR="DB_PKG_${DB_ENGINE}"
-DB_REQS_VAR="DB_REQS_${DB_ENGINE}"
-DB_ENGINE_PATH_VAR="DB_ENGINE_${DB_ENGINE}"
-DB_VOLUME_PATH_VAR="DB_VOLUME_PATH_${DB_ENGINE}"
+export DB_HOST=db
+export DB_PORT=5432
 
-export DB_PORT=${!DB_PORT_VAR}
-export DB_PKG=${!DB_PKG_VAR}
-export DB_REQS=${!DB_REQS_VAR}
-export DJANGO_DB_ENGINE=${!DB_ENGINE_PATH_VAR}
-export DB_VOLUME_PATH=${!DB_VOLUME_PATH_VAR}
-
-echo "📡 Using DB port: ${DB_PORT}"
-echo "📦 Installing system package for ${DB_ENGINE}: ${DB_PKG}"
-
-
-# 시스템 패키지 설치
-apt-get update -qq && apt-get install -y ${DB_PKG} && rm -rf /var/lib/apt/lists/*
-
-
-# Python 패키지 설치
-if [ -n "$DB_REQS" ]; then
-  echo "📘 Installing Python DB driver: ${DB_REQS}"
-  pip install --no-cache-dir ${DB_REQS}
-fi
-
-
-# DB 서비스 대기
-echo "⏳ Waiting for DB service at ${DB_HOST}:${DB_PORT}..."
+echo "⏳ Waiting for PostGIS at ${DB_HOST}:${DB_PORT}..."
 until nc -z ${DB_HOST} ${DB_PORT}; do
   sleep 1
 done

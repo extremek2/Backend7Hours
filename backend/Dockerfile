@@ -1,39 +1,36 @@
-# Python 기반 이미지
+# 🐍 Python 3.11 슬림 버전 (가볍고 빠름)
 FROM python:3.11-slim
 
-# 환경 변수
-ENV PYTHONUNBUFFERED 1
+# 1. 파이썬 로그가 버퍼링 없이 바로 출력되도록 설정
+ENV PYTHONUNBUFFERED=1
 
-# 작업 디렉토리
+# 2. 작업 폴더 설정
 WORKDIR /app
 
-# 패키지 설치를 위한 기본 유틸
+# 3. 🌍 GeoDjango 필수 시스템 패키지 설치 (여기가 에러 났던 부분 수정)
+# - binutils, libproj-dev, gdal-bin: 지도 데이터 처리용
+# - netcat-openbsd: DB 연결 대기용 (entrypoint.sh에서 사용)
+# - python3-gdal 등 충돌나는 패키지는 제거함
 RUN apt-get update && apt-get install -y \
-    build-essential \
     binutils \
-    wget \
-    netcat-openbsd \
+    libproj-dev \
     gdal-bin \
     libgdal-dev \
-    libproj-dev \
-    pkg-config \
-    python3-gdal \
+    netcat-openbsd \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# === Install MinIO mc (build-time) ===
-RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc \
-    -O /usr/local/bin/mc \
-    && chmod +x /usr/local/bin/mc
-
-# requirements.txt 복사 및 설치
+# 4. 파이썬 의존성 설치
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# 소스 복사
+# 5. 소스 코드 복사
 COPY . .
 
-# entrypoint 스크립트 등록
-COPY entrypoint.backend.sh /entrypoint.backend.sh
-RUN chmod +x /entrypoint.backend.sh
+# 6. 실행 권한 부여 (윈도우에서 넘어온 파일 호환성 해결)
+COPY entrypoint.sh .
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.backend.sh"]
+# 7. 실행 명령
+ENTRYPOINT ["./entrypoint.sh"]

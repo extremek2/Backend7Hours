@@ -176,15 +176,14 @@ AUTHENTICATION_BACKENDS = [
 # sites framework 활성화
 SITE_ID = 1
 
-
 DATABASES = {
-    "default": {
+    'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', 5432),
+        'NAME': os.environ.get('DB_NAME', '7hoursdb'),
+        'USER': os.environ.get('DB_USER', 'user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '7777'),
+        'HOST': os.environ.get('DB_HOST', 'db'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
