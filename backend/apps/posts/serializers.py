@@ -169,7 +169,7 @@ class PostListSerializer(RedisCountMixin, UserStatusMixin, serializers.ModelSeri
         model = Post
         fields = [
             'id', 'auth_id', 'auth_name', 'auth_profile_image', 
-            'post_type', 'title', 'image',
+            'post_type', 'title', 'content', 'image',
             'view_count', 'comment_count', 'like_count', 'bookmark_count',
             'is_liked', 'is_bookmarked',
             'created_at', 'updated_at',
@@ -245,7 +245,7 @@ class PostDetailSerializer(PostListSerializer):
     
     class Meta(PostListSerializer.Meta):
         # 부모의 fields에 content와 comments 추가
-        fields = PostListSerializer.Meta.fields + ['content', 'comments']
+        fields = PostListSerializer.Meta.fields + ['comments']
     
     def get_comments(self, obj):
         """
