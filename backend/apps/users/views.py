@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from .serializers import UserSerializer, UserRegisterSerializer, EmailTokenObtainPairSerializer,UserProfileUpdateSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from core.models import Bookmark
 from core.serializers import BookmarkSerializer
@@ -41,7 +41,7 @@ class UserListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = UserSerializer
     # permission_classes = [permissions.IsAuthenticated]
     permission_classes = [permissions.AllowAny]  # 개발 편의를 위해 인증 없이 허용
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     
     def post(self, request, *args, **kwargs):
