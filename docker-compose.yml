@@ -1,0 +1,166 @@
+services:
+  backend:
+    build: ./backend
+    container_name: backend_dev
+    env_file:
+      - ./.env
+    ports:
+      - "${DJANGO_PORT}:${DJANGO_PORT}"
+    volumes:
+      - ./backend:/app
+    entrypoint: /app/entrypoint.backend.sh
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - default
+      - ai-network
+
+  diary_server:
+    build:
+      context: ./ai-walk-server
+      dockerfile: Dockerfile
+    container_name: diary_server
+    ports:
+      - "8002:8002"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+    env_file:
+      - ./ai-walk-server/.env   
+    volumes:
+      - ./ai-walk-server:/app
+    restart: unless-stopped
+    depends_on:
+      ollama:                             
+        condition: service_started
+    networks:
+      - ai-network
+  
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_server
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ai-network
+    # network_mode: host
+
+
+  celery_worker:
+    build: ./backend
+    container_name: 7hours_celery_worker
+    command: celery -A core worker --loglevel=info  # 'config'는 장고 프로젝트명으로 변경 필요
+    environment:
+      RUN_MIGRATION: "false"
+    env_file:
+      - ./.env
+    volumes:
+      - ./backend:/app
+    entrypoint: /app/entrypoint.worker.sh
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - default
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: 7hours_celery_beat
+    env_file:
+      - ./.env
+    volumes:
+      - ./backend:/app
+    entrypoint: /app/entrypoint.worker.sh
+    command: celery -A core beat --loglevel=info
+    depends_on:
+      - backend
+      - redis
+      - db
+      - minio
+    networks:
+      - default
+
+  redis:
+    image: redis:7-alpine
+    container_name: 7hours_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - default
+    
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: 7hours_db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - default
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    container_name: 7hours_minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    networks:
+      - default
+
+volumes:
+  db_data:
+  minio_data:
+  ollama_models:
+
+networks:
+  default:
+    driver: bridge
+  ai-network:
+    driver: bridge
