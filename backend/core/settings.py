@@ -117,7 +117,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',  # IsAuthenticated
+        'rest_framework.permissions.IsAuthenticated',  # IsAuthenticated, AllowAny
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
@@ -144,14 +144,14 @@ REST_AUTH = {
     'JWT_AUTH_HTTPONLY': False, # 앱에서 토큰을 읽어야 하므로 False (보안 정책에 따라 True)
 }
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY,
-}
+# SIMPLE_JWT = {
+#     "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
+#     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+#     "ROTATE_REFRESH_TOKENS": True,
+#     "BLACKLIST_AFTER_ROTATION": True,
+#     "ALGORITHM": "HS256",
+#     "SIGNING_KEY": SECRET_KEY,
+# }
 
 # 2. 유저 인증 방식 (이메일 vs 유저네임)
 # 안드로이드 앱 요구사항: "이메일 -> 유저네임 변경" 관련
@@ -269,14 +269,18 @@ AWS_S3_OBJECT_PARAMETERS = {
 AWS_QUERYSTRING_AUTH = False
 
 # CELERY 설정
-CELERY_BROKER_URL = "redis://redis:6379/0"
-CELERY_RESULT_BACKEND = "redis://redis:6379/1"
-CELERY_ACCEPT_CONTENT = ['json']
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = int(os.getenv('CELERY_TASK_TIME_LIMIT', '300'))
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
 CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Seoul'
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 
-MINIO_ENDPOINT = "localhost:9000/"  # (예: minio.example.com)
+MINIO_ENDPOINT = "localhost:9000"  # (예: minio.example.com)
 # MINIO_ACCESS_KEY = "minioadmin"        # (예: "minioadmin")
 # MINIO_SECRET_KEY = "minioadminpassword"        # (예: "minioadmin")
 # MINIO_BUCKET_NAME = "paths-"      # (예: "paths")
@@ -287,10 +291,10 @@ MINIO_PATHS_BUCKET_NAME = os.environ.get('MINIO_PATHS_BUCKET')
 
 SIMPLE_JWT = {
     # 액세스 토큰 수명을 60분으로 늘림 (기본값 5분은 테스트하기 너무 짧음)
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=5),
     
     # 리프레시 토큰 수명
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     
     # [핵심] 헤더 타입을 'Bearer'로 확실하게 지정
     'AUTH_HEADER_TYPES': ('Bearer',), 
@@ -315,4 +319,45 @@ CHANNEL_LAYERS = {
             "hosts": [(os.environ.get('REDIS_HOST', 'redis'), 6379)],
         },
     },
+}
+
+# 경로 썸네일용
+# 1. 렌더링 엔진 선택 (주 제어 변수)
+# 'NAVER' 또는 'MATPLOTLIB' 중 하나를 선택하여 썸네일 생성 방식을 제어합니다.
+PATH_RENDER_ENGINE = 'CONTEXTILY' 
+
+# 2. 썸네일 렌더링에 필요한 모든 설정 통합 (중앙 집중식 딕셔너리)
+THUMBNAIL_RENDER_CONFIG = {
+    # ----------------------------------------------------
+    # 공통 설정 (두 엔진 모두 사용)
+    # ----------------------------------------------------
+    'IMAGE_WIDTH': int(os.getenv('THUMBNAIL_IMAGE_WIDTH', 800)),         # 최종 이미지 가로 픽셀
+    'IMAGE_HEIGHT': int(os.getenv('THUMBNAIL_IMAGE_HEIGHT', 800)),       # 최종 이미지 세로 픽셀
+    'LINE_COLOR': os.getenv('THUMBNAIL_LINE_COLOR', '0xff0000ff'),   # 경로 선 색상
+    'LINE_COLOR_HEX': os.getenv('THUMBNAIL_LINE_COLOR_HEX', '#FF0000'),   # 경로 선 색상(HEX)
+    'LINE_WIDTH': int(os.getenv('THUMBNAIL_LINE_WIDTH', 3)),
+    
+    # ----------------------------------------------------
+    # CONTEXTILY 전용 설정 (Mapbox, OSM 등 Contextily 관련 설정)
+    # ----------------------------------------------------
+    'CONTEXTILY': {
+        'DPI': int(os.getenv('CONTEXTILY_DPI', 100)),
+        # 지도 표시 범위 조정에 사용되는 추가 상수
+        'MIN_MAP_EXTENT': int(os.getenv('CONTEXTILY_MIN_MAP_EXTENT', 2000)), # 미터 단위
+        'PADDING_RATIO': float(os.getenv('CONTEXTILY_PADDING_RATIO', '0.2')), # 0.2 = 20%
+    },
+    
+    # ----------------------------------------------------
+    # NAVER Static Map 전용 설정 (CONTEXTILY 사용 시 무시됨)
+    # ----------------------------------------------------
+    'NAVER': {
+        'API_URL': os.getenv(
+            'NAVER_API_URL',
+            'https://maps.apigw.ntruss.com/map-static/v2/raster'
+        ),
+        'CLIENT_ID': os.getenv('NAVER_CLIENT_ID','l9rv1pftio'),
+        'CLIENT_SECRET': os.getenv('NAVER_CLIENT_SECRET','l1F0BgARq9B0OwXENwJsdviRL2zADSbpHV3qhEWr'),
+        'MAP_TYPE': os.getenv('NAVER_MAP_TYPE', 'terrain'), 
+        'SCALE': int(os.getenv('NAVER_MAP_SCALE', '2')),
+    }
 }

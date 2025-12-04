@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 from core.models import BaseModel, Comment, Bookmark
+from core.utils import UploadFilePathGenerator
+from core.custom_storages import PathsStorage
 from django.contrib.gis.db.models import LineStringField
 from django.contrib.contenttypes.fields import GenericRelation
 
@@ -29,7 +31,13 @@ class Path(BaseModel):
     distance = models.FloatField(null=True, blank=True)  # m 단위
     duration = models.IntegerField(null=True, blank=True) # 분 단위
     is_private = models.BooleanField(default=False)
-    thumbnail = models.CharField(max_length=255, null=True, blank=True)
+    # thumbnail = models.CharField(max_length=255, null=True, blank=True)
+    thumbnail = models.ImageField(
+        upload_to=UploadFilePathGenerator('path_thumbnails', user_field='auth_user'),
+        storage=PathsStorage(),
+        null=True,
+        blank=True
+    )
     geom = LineStringField(dim=3, null=True, blank=True)  # 3D LineString (x=lon, y=lat, z=ele)
     
     # ✅ 추가: 안드로이드 전송용 필드
@@ -45,3 +53,8 @@ class Path(BaseModel):
     def __str__(self):
         email = self.auth_user.email if self.auth_user else 'N/A'
         return f"{self.path_name} ({email})"
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=["geom"], name="idx_path_geom_gist")
+        ]

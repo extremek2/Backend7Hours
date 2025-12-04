@@ -1,13 +1,14 @@
 import requests
-import polyline
 from django.contrib.gis.geos import LineString, Point
 from django.contrib.auth import get_user_model
-from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.db.models.functions import Distance, Length
+from django.db import transaction
 from .models import Path
 from datetime import datetime
 from urllib.parse import unquote
 from geopy.distance import distance as geopy_distance
 from polyline import encode as polyline_encode
+from .utils import GisUtils
 
 User = get_user_model() # 런타임에서 CustomUser 클래스 반환
 
@@ -63,8 +64,11 @@ class PathService:
             coords = PathService.fetch_gpx_coords(gpx_url)
             if not coords:
                  continue
+             
+            coords_3d = GisUtils.fill_z_values(coords)
             # JSON 객체 형식으로 변환
-            geom = PathService.create_linestring(PathService.fill_z_values(coords))  
+            geom = GisUtils.create_linestring(coords_3d)
+              
             
             if not geom:
                 continue
@@ -84,8 +88,8 @@ class PathService:
                 is_private=False,
                 geom=geom,
                 # 여기 추가
-                polyline=polyline_encode([(c[1], c[0]) for c in PathService.fill_z_values(coords)]),  # (lat, lng)
-                markers=[{"lat": c[1], "lng": c[0], "z": c[2]} for c in PathService.fill_z_values(coords)]
+                polyline=polyline_encode([(c[1], c[0]) for c in coords_3d]),  # (lat, lng)
+                markers=[{"lat": c[1], "lng": c[0], "z": c[2]} for c in coords_3d]
             ))
 
             
@@ -104,31 +108,20 @@ class PathService:
                         coords_json=None, start_time=None, end_time=None,
                         level=None, distance=None, duration=None, 
                         thumbnail=None, is_private=None, polyline=None, markers=None):
+        from .tasks import (
+            calculate_path_metrics_and_update, 
+            render_path_and_upload
+        )
+        
         """사용자가 보낸 좌표를 저장 (JSON 객체, 서버에서 z값 채움)"""
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return None
 
-        coords_3d = PathService.fill_z_values(coords_json)
-        geom = PathService.create_linestring(coords_3d)
-        
-        # distance가 제공되지 않으면 계산
-        if distance is None:
-            distance = PathService.calculate_distance(geom)
-
-        # duration이 제공되지 않으면 start_time과 end_time으로 계산
-        if duration is None and start_time and end_time:
-            duration = int((end_time - start_time).total_seconds() / 60)
-        # if start_time and end_time:
-        #     duration = int((end_time - start_time).total_seconds() / 60)
-
-        # level이 제공되지 않으면 추정
-        if level is None:
-            level = PathService.estimate_level(geom)
-
-        # level = PathService.estimate_level(geom)
-
+        coords_3d = GisUtils.fill_z_values(coords_json)
+        geom = GisUtils.create_linestring(coords_3d)
+                
         path = Path.objects.create(
             auth_user=user,
             path_name=path_name or f"Path_{user.id}_{datetime.now().strftime('%Y%m%d%H%M')}",
@@ -143,6 +136,25 @@ class PathService:
             polyline=polyline,
             markers=markers  # 필요에 따라 필터링 가능
         )
+        
+        # [post_gis] distance 계산 후 업데이트
+        if geom:
+            Path.objects.filter(id=path.id).update(distance=Length('geom'))
+            path.refresh_from_db()
+        
+        # [CELERY_Task] duration/level 업데이트
+        should_calculate = (duration in [None, 0] or level in [None, 0])
+        
+        def schedule_tasks():
+            if geom and should_calculate:
+                calculate_path_metrics_and_update.delay(path.id)
+                
+            # [CELERY_Task] 썸네일 생성
+            if geom: 
+                render_path_and_upload.delay(path.id)
+        
+        transaction.on_commit(schedule_tasks)
+        
         return path
 
     # --------------------------
@@ -219,83 +231,3 @@ class PathService:
         except Exception as e:
             # print(f"[GPX 시작 좌표 파싱 오류] {e}") # 디버깅 시 필요
             return None
-
-    # --------------------------
-    # GIS 계산
-    # --------------------------
-    @staticmethod
-    def create_linestring(coords):
-        try:
-            return LineString(coords, srid=4326)
-        except Exception:
-            return None
-
-    @staticmethod
-    def calculate_distance(geom):
-        """
-        LineString(SRID 4326)의 정확한 길이를 미터(m) 단위로 계산합니다.
-        이를 위해 대한민국에 적합한 투영 좌표계(5179)로 변환합니다.
-        """
-        if not geom or geom.empty:
-            return 0
-            
-        try:
-            # LineString을 미터 단위 SRID(5179)로 변환하고 길이를 측정
-            # .length는 변환 후 미터(m) 단위로 반환됩니다.
-            # clone=True는 원본 geom을 변경하지 않기 위함
-            distance_m = geom.transform(5179, clone=True).length 
-            return distance_m
-        except Exception as e:
-            # 변환 중 오류 발생 시, 0 또는 대체 값 반환
-            print(f"[거리 계산 오류] {e}")
-            return 0
-
-    @staticmethod
-    def estimate_level(geom):
-        if not geom or geom.empty:
-            return 2
-        elevations = [pt[2] for pt in geom if len(pt) == 3]
-        if not elevations:
-            return 2
-        diff = max(elevations) - min(elevations)
-        if diff < 30:
-            return 1
-        elif diff < 100:
-            return 2
-        return 3
-
-    @staticmethod
-    def fill_z_values(coords):
-        """coords가 dict 형식이든 (lat, lng) 튜플이든 모두 처리"""
-        coords_3d = []
-        for c in coords:
-            # dict 타입일 때
-            if isinstance(c, dict):
-                lat = c.get("lat")
-                lon = c.get("lng")
-                ele = c.get("z", 0.0)
-            # tuple/list 타입일 때
-            elif isinstance(c, (list, tuple)):
-                lat, lon = c
-                ele = 0.0
-            else:
-                continue
-
-            coords_3d.append((lon, lat, ele))  # GEOS는 (x=lon, y=lat, z)
-        return coords_3d
-    
-    # --------------------------
-    # polyline 디코딩 함수 
-    # --------------------------
-    @staticmethod
-    def decode_polyline(polyline_str):
-        """
-        polyline 문자열 -> [(lat, lng, z), ...] 리스트로 변환
-        GEOS LineString용 (lon, lat) 튜플로 반환
-        """
-        try:
-            coords = polyline.decode(polyline_str)  # [(lat, lng), ...]
-            return [(lng, lat, 0.0) for lat, lng in coords]  # z=0.0
-        except Exception as e:
-            print(f"[Polyline 디코딩 오류] {e}")
-            return []

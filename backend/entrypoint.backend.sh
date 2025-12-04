@@ -46,9 +46,12 @@ BUCKETS=(
 for BUCKET_NAME in "${BUCKETS[@]}"; do
   echo "  -> Creating bucket: $BUCKET_NAME"
   mc mb "$MINIO_CLIENT_ALIAS/$BUCKET_NAME" --ignore-existing
+
+  echo " -> Setting anonymous read policy for: $BUCKET_NAME"
+  mc anonymous set public "$MINIO_CLIENT_ALIAS/$BUCKET_NAME"
 done
 
-echo "✅ MinIO buckets created."
+echo "✅ MinIO buckets created with anonymous access enabled."
 # =============================================================
 
 # 마이그레이션 수행
