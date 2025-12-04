@@ -3,12 +3,12 @@ services:
     build: ./backend
     container_name: backend_dev
     env_file:
-      - .env
+      - ./.env
     ports:
       - "${DJANGO_PORT}:${DJANGO_PORT}"
     volumes:
       - ./backend:/app
-    entrypoint: ./entrypoint.backend.sh
+    entrypoint: /app/entrypoint.backend.sh
     depends_on:
       db:
         condition: service_healthy
@@ -16,8 +16,50 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - ai-network
 
+  diary_server:
+    build:
+      context: ./ai-walk-server
+      dockerfile: Dockerfile
+    container_name: diary_server
+    ports:
+      - "8002:8002"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+    env_file:
+      - ./ai-walk-server/.env   
+    volumes:
+      - ./ai-walk-server:/app
+    restart: unless-stopped
+    depends_on:
+      ollama:                             
+        condition: service_started
+    networks:
+      - ai-network
   
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_server
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ai-network
+    # network_mode: host
+
+
   celery_worker:
     build: ./backend
     container_name: 7hours_celery_worker
@@ -25,10 +67,10 @@ services:
     environment:
       RUN_MIGRATION: "false"
     env_file:
-      - .env
+      - ./.env
     volumes:
       - ./backend:/app
-    entrypoint: ./entrypoint.worker.sh
+    entrypoint: /app/entrypoint.worker.sh
     depends_on:
       backend:
         condition: service_started
@@ -36,21 +78,27 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+    networks:
+      - default
+
   celery_beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: 7hours_celery_beat
     env_file:
-      - .env
+      - ./.env
     volumes:
       - ./backend:/app
-    entrypoint: ./entrypoint.beat.sh
+    entrypoint: /app/entrypoint.worker.sh
+    command: celery -A core beat --loglevel=info
     depends_on:
       - backend
       - redis
       - db
       - minio
+    networks:
+      - default
 
   redis:
     image: redis:7-alpine
@@ -62,6 +110,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 3
+    networks:
+      - default
     
   db:
     image: postgis/postgis:16-3.4
@@ -81,6 +131,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    networks:
+      - default
 
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
@@ -99,7 +151,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 3
+    networks:
+      - default
 
 volumes:
   db_data:
   minio_data:
+  ollama_models:
+
+networks:
+  default:
+    driver: bridge
+  ai-network:
+    driver: bridge
