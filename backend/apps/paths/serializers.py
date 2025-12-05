@@ -32,7 +32,7 @@ class UserPathUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Path
-        fields = ["path_name", "path_comment", "level", "distance", "duration", "thumbnail", "is_private"]
+        fields = ["path_name", "path_comment", "is_private"]
 
 # 댓글 작성자 정보 Serializer
 # class AuthorSerializer(serializers.ModelSerializer):
