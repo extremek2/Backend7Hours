@@ -46,7 +46,7 @@ class BookmarkSerializer(serializers.ModelSerializer):
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
-        fields = ['id', 'nickname']
+        fields = ['id', 'nickname', 'profile_image']
         
 class CommentSerializer(serializers.ModelSerializer):
     """
