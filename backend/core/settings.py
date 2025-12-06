@@ -14,6 +14,8 @@ from pathlib import Path
 import os, json
 from dotenv import load_dotenv
 from datetime import timedelta
+import logging
+from minio import Minio
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -253,7 +255,9 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('MINIO_ROOT_PASSWORD')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('MINIO_USERS_BUCKET', 'users') # Minio에서 생성한 버킷 이름 (우선은 users 기본 사용)
 
 # 4. Minio 서버 주소 (Docker 내부 통신)
-AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT_URL', 'http://127.0.0.1:9000')
+# AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT_URL', 'http://127.0.0.1:9000')
+AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT_URL', 'http://localhost:9000')
+# AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')
 
 # 5. 기타 설정
 AWS_LOCATION = os.environ.get('AWS_LOCATION', 'media') # 각 버킷 내에서 /media/ 폴더 안에 저장
@@ -280,7 +284,7 @@ CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 
-MINIO_ENDPOINT = "localhost:9000"  # (예: minio.example.com)
+MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', '192.168.0.209:9000')  # (예: minio.example.com)
 # MINIO_ACCESS_KEY = "minioadmin"        # (예: "minioadmin")
 # MINIO_SECRET_KEY = "minioadminpassword"        # (예: "minioadmin")
 # MINIO_BUCKET_NAME = "paths-"      # (예: "paths")
@@ -288,6 +292,21 @@ MINIO_ENDPOINT = "localhost:9000"  # (예: minio.example.com)
 
 # PATH Thumbnail 저장소
 MINIO_PATHS_BUCKET_NAME = os.environ.get('MINIO_PATHS_BUCKET')
+
+# ========================================
+# MinIO 추가 설정
+# ========================================
+MINIO_CLIENT = Minio(
+    endpoint=os.environ.get('MINIO_ENDPOINT', '192.168.0.209:9000'),
+    # endpoint=str(os.getenv('AWS_S3_CUSTOM_DOMAIN')),
+    # endpoint=f"{os.getenv('MINIO_HOST')}:{os.getenv('MINIO_PORT')}",
+    # endpoint="192.168.0.209:9000",
+    access_key=os.environ.get('MINIO_ROOT_USER'),
+    secret_key=os.environ.get('MINIO_ROOT_PASSWORD'),
+    secure=os.environ.get('MINIO_USE_SSL', 'False').lower() == 'true'
+)
+MINIO_PATHS_BUCKET_NAME = os.environ.get('MINIO_PATHS_BUCKET', 'paths')
+
 
 SIMPLE_JWT = {
     # 액세스 토큰 수명을 60분으로 늘림 (기본값 5분은 테스트하기 너무 짧음)

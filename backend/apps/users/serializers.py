@@ -96,11 +96,11 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     is_pet = serializers.SerializerMethodField()
-    profile_image = serializers.ImageField(use_url=True, required=False)
+    profile_image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'email', 'full_name', 'nickname', 'profile_image', 'is_pet']
+        fields = ['id', 'email', 'full_name', 'nickname', 'profile_image', 'profile_image_url', 'is_pet']
         
     def get_is_pet(self, obj):
         """
@@ -108,11 +108,16 @@ class UserSerializer(serializers.ModelSerializer):
         'linked_as_pet' is the related_name from the OneToOneField in the Pet model.
         """
         return hasattr(obj, 'linked_as_pet')
+
+    def get_profile_image_url(self, obj):
+        """Pre-signed URL 반환"""
+        return obj.get_profile_image_url()
         
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    profile_image_url = serializers.SerializerMethodField()
     class Meta:
         model = User
-        fields = ['id', 'email', 'full_name', 'nickname', 'profile_image']
+        fields = ['id', 'email', 'full_name', 'nickname', 'profile_image', 'profile_image_url']
 
         # [중요] 이메일이나 ID는 수정 못하게 '읽기 전용'으로 설정합니다.
         read_only_fields = ['id', 'email', 'full_name']
@@ -121,3 +126,7 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
             'profile_image': {'required': False},
             'nickname': {'required': False},
         }
+        
+    def get_profile_image_url(self, obj):
+        """Pre-signed URL 반환"""
+        return obj.get_profile_image_url()

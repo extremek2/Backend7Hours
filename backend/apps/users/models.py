@@ -3,6 +3,7 @@ from django.db import models
 from core.utils import UploadFilePathGenerator
 from core.custom_storages import UsersStorage
 import uuid
+from core.utils import get_presigned_url
 
 def generate_unique_nickname():
     return 'user_' + uuid.uuid4().hex[:8]
@@ -74,5 +75,9 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.email
-    
-    
+
+    def get_profile_image_url(self):
+        """프로필 이미지의 Pre-signed URL 반환"""
+        if self.profile_image:
+            return get_presigned_url(self.profile_image.url)
+        return None

@@ -4,6 +4,7 @@ from core.models import BaseModel, Comment, Like, Bookmark
 from core.utils import UploadFilePathGenerator
 from core.custom_storages import PostsStorage
 from django.contrib.contenttypes.fields import GenericRelation
+from core.utils import get_presigned_url
 
 # 게시글
 # 타입 분류
@@ -63,3 +64,9 @@ class Post(BaseModel):
     
     def __str__(self):
         return self.title
+
+    def get_image_url(self):
+        """포스트 이미지의 Pre-signed URL 반환"""
+        if self.image:
+            return get_presigned_url(self.image.url)
+        return None

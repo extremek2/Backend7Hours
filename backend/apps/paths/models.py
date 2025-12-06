@@ -5,6 +5,7 @@ from core.utils import UploadFilePathGenerator
 from core.custom_storages import PathsStorage
 from django.contrib.gis.db.models import LineStringField
 from django.contrib.contenttypes.fields import GenericRelation
+from core.utils import get_presigned_url
 
 class Path(BaseModel):
     # 경로 출처 선택지
@@ -54,6 +55,12 @@ class Path(BaseModel):
         email = self.auth_user.email if self.auth_user else 'N/A'
         return f"{self.path_name} ({email})"
     
+    def get_thumbnail_url(self):
+        """썸네일의 Pre-signed URL 반환"""
+        if self.thumbnail:
+            return get_presigned_url(self.thumbnail.url)
+        return None
+        
     class Meta:
         indexes = [
             models.Index(fields=["geom"], name="idx_path_geom_gist")
