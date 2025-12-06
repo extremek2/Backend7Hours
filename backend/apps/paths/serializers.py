@@ -64,14 +64,15 @@ class PathSerializer(serializers.ModelSerializer):
 
     # 🔥 markers 필드 추가
     markers = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Path
         fields = [
             "id", "source", "path_name", "path_comment", "level",
-            "distance", "duration", "is_private", "thumbnail", "coords", 
-            "auth_user_nickname", "comments", "bookmark_count", "is_bookmarked", "markers",
-            "distance_from_me"
+            "distance", "duration", "is_private", "thumbnail", "thumbnail_url", 
+            "coords", "auth_user_nickname", "comments", "bookmark_count", 
+            "is_bookmarked", "markers", "distance_from_me"
         ]
 
     def __init__(self, *args, **kwargs):
@@ -80,6 +81,10 @@ class PathSerializer(serializers.ModelSerializer):
             self.fields.pop('coords', None)
         if self.context.get('exclude_comments'):
             self.fields.pop('comments', None)
+
+    def get_thumbnail_url(self, obj):
+        """썸네일의 Pre-signed URL 반환"""
+        return obj.get_thumbnail_url()
 
     def get_coords(self, obj):
         if getattr(obj, "geom", None) is None:
@@ -143,16 +148,21 @@ class BookmarkedPathSerializer(serializers.ModelSerializer):
     bookmarks_count = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
     markers = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Path
         fields = [
             "id", "source", "path_name", "path_comment", "level",
-            "distance", "duration", "is_private", "thumbnail",
+            "distance", "duration", "is_private", "thumbnail", "thumbnail_url",
             "auth_user_nickname", "bookmarks_count", "is_bookmarked","markers",
             # "distance_from_me"
         ]
 
+    def get_thumbnail_url(self, obj):
+        """썸네일의 Pre-signed URL 반환"""
+        return obj.get_thumbnail_url()
+        
     def get_distance(self, obj):
     #     if obj.distance is not None:
     #         return float(obj.distance)

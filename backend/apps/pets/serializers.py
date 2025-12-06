@@ -39,15 +39,21 @@ class PetSerializer(serializers.ModelSerializer):
     # 4. 연결된 사용자 계정 정보를 보여줌
     linked_user = serializers.PrimaryKeyRelatedField(read_only=True)
 
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Pet
         # API에서 사용할 필드 목록 정의
         fields = [
             'id', 'owner', 'name', 'gender', 'birthday', 
-            'neutering', 'breed', 'image',
+            'neutering', 'breed', 'image', 'image_url',
             'linked_user', 'last_location'
         ]
         read_only_fields = ['owner'] # 명시적으로 owner 필드는 수정 불가
+
+    def get_image_url(self, obj):
+        """Pre-signed URL 반환"""
+        return obj.get_image_url()
 
     # 5. 추가 로직: 등록/수정 시 현재 로그인한 사용자를 owner로 자동 할당
     def create(self, validated_data):

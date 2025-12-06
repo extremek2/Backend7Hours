@@ -6,6 +6,7 @@ from django.db import models
 from django.conf import settings
 from core.utils import UploadFilePathGenerator
 from core.custom_storages import PetsStorage
+from core.utils import get_presigned_url
 
 
 # 반려견 품종
@@ -99,6 +100,12 @@ class Pet(BaseModel):
 
     def __str__(self):
         return f"{self.owner.username}의 {self.name}"
+
+    def get_image_url(self):
+        """펫 이미지의 Pre-signed URL 반환"""
+        if self.image:
+            return get_presigned_url(self.image.url)
+        return None
 
 # 신규: 반려견 위치 추적 모델
 class PetLocation(BaseModel):
