@@ -89,7 +89,7 @@ class PathService:
                 geom=geom,
                 # 여기 추가
                 polyline=polyline_encode([(c[1], c[0]) for c in coords_3d]),  # (lat, lng)
-                markers=[{"lat": c[1], "lng": c[0], "z": c[2]} for c in coords_3d]
+                markers=[]
             ))
 
             

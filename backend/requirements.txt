@@ -46,6 +46,7 @@ minio==7.2.7
 geopandas==1.0.1
 matplotlib==3.9.1
 polyline
+elevation==1.1.3
 
 # Test Code
 Faker>=18.0.0

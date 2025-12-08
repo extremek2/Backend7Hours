@@ -16,7 +16,7 @@ class MarkerSerializer(serializers.Serializer):
 class UserPathCreateSerializer(serializers.Serializer):
     path_name = serializers.CharField(required=False, allow_blank=True)
     path_comment = serializers.CharField(required=False, allow_blank=True)
-    level = serializers.IntegerField(required=False, default=2)
+    level = serializers.IntegerField(required=False, allow_null=True)
     distance = serializers.FloatField(required=False)
     coords = CoordSerializer(many=True, required=False)
     start_time = serializers.DateTimeField(required=False)

@@ -37,39 +37,161 @@ class GisUtils:
             return 0
 
     @staticmethod
-    def estimate_level(geom):
+    def estimate_level(geom: LineString) -> int:
+        """
+        경로 난이도 추정 (DEM 기반 + fallback)
+        - geom: LineString (2D 또는 3D, z값이 None일 수도 있음)
+        - 반환: 1(쉬움), 2(보통), 3(어려움)
+        """
+        from apps.paths.dem_utils import get_dem
+        
         if not geom or geom.empty:
-            return 2
-        elevations = [pt[2] for pt in geom if len(pt) == 3]
-        if not elevations:
-            return 2
-        diff = max(elevations) - min(elevations)
-        if diff < 30:
-            return 1
-        elif diff < 100:
-            return 2
-        return 3
+            return 2  # 기본 난이도
+
+        try:
+            dem = get_dem()
+
+            # 3D 좌표 생성: DEM이 null 처리
+            geom_3d_coords = []
+            for coord in geom.coords:
+                lon, lat = coord[0], coord[1]
+                z = coord[2] if len(coord) > 2 and coord[2] is not None else 0.0
+                geom_3d_coords.append((lon, lat, z))
+            geom_3d = LineString(geom_3d_coords, srid=4326)
+
+            # DEM으로 난이도 계산
+            geom_3d = dem.add_elevation_to_linestring(geom_3d)
+            return dem.estimate_difficulty_level(geom_3d)
+
+        except Exception as e:
+            print(f"[DEM 난이도 계산 실패] {e}, fallback 사용")
+
+            # fallback: z값 기반, null이면 0.0
+            elevations = [pt[2] if len(pt) > 2 and pt[2] is not None else 0.0 for pt in geom]
+            if not elevations:
+                return 2
+            diff = max(elevations) - min(elevations)
+            if diff < 30:
+                return 1
+            elif diff < 100:
+                return 2
+            return 3
 
     @staticmethod
     def fill_z_values(coords):
-        """coords가 dict 형식이든 (lat, lng) 튜플이든 모두 처리"""
-        coords_3d = []
-        for c in coords:
-            # dict 타입일 때
-            if isinstance(c, dict):
-                lat = c.get("lat")
-                lon = c.get("lng")
-                ele = c.get("z", 0.0)
-            # tuple/list 타입일 때
-            elif isinstance(c, (list, tuple)):
-                lat, lon = c
-                ele = 0.0
-            else:
-                continue
-
-            coords_3d.append((lon, lat, ele))  # GEOS는 (x=lon, y=lat, z)
-        return coords_3d
+        """
+        coords에 DEM 기반 실제 고도 값 채우기 (업그레이드)
+        coords가 dict 형식이든 (lat, lng) 튜플이든 모두 처리
+        """
+        from apps.paths.dem_utils import get_dem
+        try:
+            dem = get_dem()
+            coords_3d = []
+            
+            for c in coords:
+                # dict 타입일 때
+                if isinstance(c, dict):
+                    lat = c.get("lat")
+                    lon = c.get("lng")
+                    ele = c.get("z")  # 기존 z 값이 있으면 사용
+                # tuple/list 타입일 때
+                elif isinstance(c, (list, tuple)):
+                    lat, lon = c
+                    ele = None
+                else:
+                    continue
+                
+                # DEM에서 실제 고도 가져오기
+                if ele is None:
+                    ele = dem.get_elevation(lat, lon)
+                    if ele is None:
+                        ele = 0.0
+                
+                coords_3d.append((lon, lat, ele))  # GEOS는 (x=lon, y=lat, z)
+            
+            return coords_3d
+        except Exception as e:
+            print(f"[DEM 고도 채우기 실패] {e}, 기본값 사용")
+            # fallback: 기존 방식 (z=0)
+            coords_3d = []
+            for c in coords:
+                if isinstance(c, dict):
+                    lat = c.get("lat")
+                    lon = c.get("lng")
+                    ele = c.get("z", 0.0)
+                elif isinstance(c, (list, tuple)):
+                    lat, lon = c
+                    ele = 0.0
+                else:
+                    continue
+                coords_3d.append((lon, lat, ele))
+            return coords_3d
+        
+    # --------------------------
+    # DEM 관련 메서드 (새로 추가)
+    # --------------------------
+    @staticmethod
+    def add_elevation_to_linestring(geom: LineString) -> LineString:
+        """
+        LineString에 DEM 기반 실제 고도 값 추가 (2D -> 3D)
+        
+        Args:
+            geom: LineString (SRID 4326)
+        
+        Returns:
+            LineString with elevation (3D)
+        """
+        try:
+            dem = get_dem()
+            return dem.add_elevation_to_linestring(geom)
+        except Exception as e:
+            print(f"[고도 추가 실패] {e}")
+            return geom
     
+    @staticmethod
+    def get_elevation_stats(geom: LineString) -> dict:
+        """
+        경로의 고도 통계 가져오기
+        
+        Returns:
+            {
+                'min_elevation': 최저 고도,
+                'max_elevation': 최고 고도,
+                'avg_elevation': 평균 고도,
+                'elevation_gain': 누적 상승,
+                'elevation_loss': 누적 하강,
+                'total_change': 총 고도 변화
+            }
+        """
+        from apps.paths.dem_utils import get_dem
+        try:
+            dem = get_dem()
+            return dem.get_elevation_stats(geom)
+        except Exception as e:
+            print(f"[고도 통계 계산 실패] {e}")
+            return None
+    
+    @staticmethod
+    def get_elevation_profile(geom: LineString, num_samples: int = 100) -> list:
+        """
+        경로의 고도 프로파일 가져오기 (차트용)
+        
+        Args:
+            geom: LineString (SRID 4326)
+            num_samples: 샘플링 포인트 수
+        
+        Returns:
+            [{'distance': 거리(m), 'elevation': 고도(m)}, ...]
+        """
+        from apps.paths.dem_utils import get_dem
+        try:
+            dem = get_dem()
+            return dem.get_elevation_profile(geom, num_samples)
+        except Exception as e:
+            print(f"[고도 프로파일 생성 실패] {e}")
+            return []
+        
+        
     # --------------------------
     # polyline 디코딩 
     # --------------------------

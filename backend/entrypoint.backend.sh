@@ -54,6 +54,10 @@ done
 echo "✅ MinIO buckets created with anonymous access enabled."
 # =============================================================
 
+# DEM script 실행 (초기 다운로드 후 스킵됨)
+bash /app/scripts/download_dem.sh
+
+
 # 마이그레이션 수행
 if [ "$RUN_MIGRATION" = "true" ]; then
   echo "📚 Running Django migrations..."

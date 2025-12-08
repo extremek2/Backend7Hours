@@ -12,6 +12,7 @@ from django.core.files.base import ContentFile
 
 from .models import Path
 from .utils import GisUtils
+from shapely.geometry import LineString
 from .renderers import render_with_naver_api, render_with_contextily , render_polyline_on_static_map
 
 # --------------------------------------------------------------------------
@@ -112,8 +113,10 @@ def render_path_and_upload(self, path_id):
         path_obj.thumbnail.save(
             file_name,
             ContentFile(img_data.getvalue()),
-            save=True
+            save=False
         )
+        # thumbnail 이름은 저장되었으므로 DB에 직접 반영
+        path_obj.save(update_fields=['thumbnail'])
         logger.info(f"Successfully saved thumbnail for path_id {path_id}")
         return f"Success: {file_name}"
     
@@ -140,38 +143,45 @@ def render_path_and_upload(self, path_id):
 
 @shared_task
 def calculate_path_metrics_and_update(path_id):
+    
+    from apps.paths.dem_utils import get_dem
+    
     """
-    PathService의 계산 로직을 수행하고 DB를 업데이트하는 Task
+    Path metrics 계산 및 업데이트 (DEM 기반, z값 null 처리 가능)
     """
     try:
         path = Path.objects.get(id=path_id)
-        
+
         if not path.geom:
+            logger.warning(f"[Metrics] Path {path_id} has no geometry.")
             return {"status": "failed", "reason": "No geometry to calculate."}
-            
-        update_fields = []
-        
-        # 거리 계산
-        # if path.distance is None or path.distance == 0.0:
-        #     path.distance = GisUtils.calculate_distance(path.geom)
-        #     update_fields.append('distance')
-            
-        # 난이도 추정
-        if path.level in [None, 0]:
-            path.level = GisUtils.estimate_level(path.geom)
-            update_fields.append('level')
-        
-        # DB 업데이트 (변경된 필드만)
-        if update_fields:
-            Path.objects.filter(pk=path.id).update(
-                **{field: getattr(path, field) for field in update_fields}
-            )
-            return {"status": "completed", "updated_fields": update_fields}
-            
-        return {"status": "skipped", "reason": "All metrics already present."}
+
+        # DEM 인스턴스
+        dem = get_dem()
+
+        # 3D 좌표 추가 (z값 null/0 가능)
+        geom_3d = dem.add_elevation_to_linestring(path.geom)
+        path.geom = geom_3d
+
+        # 난이도 계산
+        level = dem.estimate_difficulty_level(geom_3d)
+        path.level = level
+
+        # 로깅으로 확인
+        logger.info(f"[Metrics] Path {path_id} geom.z sample: {[pt[2] for pt in geom_3d.coords[:5]]}")
+        logger.info(f"[Metrics] Path {path_id} calculated level: {level}")
+
+        # DB 반영
+        Path.objects.filter(id=path_id).update(
+            geom=geom_3d,
+            level=level
+        )
+
+        return {"status": "completed", "updated_fields": ['geom', 'level']}
 
     except Path.DoesNotExist:
+        logger.warning(f"[Metrics] Path {path_id} not found.")
         return {"status": "failed", "reason": f"Path {path_id} not found."}
     except Exception as e:
-        logger.error(f"Metrics calculation failed for Path {path_id}: {e}", exc_info=True)
+        logger.error(f"[Metrics] Calculation failed for Path {path_id}: {e}", exc_info=True)
         raise

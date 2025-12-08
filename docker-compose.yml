@@ -8,6 +8,8 @@ services:
       - "${DJANGO_PORT}:${DJANGO_PORT}"
     volumes:
       - ./backend:/app
+      - ./backend/scripts:/app/scripts      # 스크립트용
+      - dem_data:/app/data/dem              # DEM 저장용
     entrypoint: /app/entrypoint.backend.sh
     depends_on:
       db:
@@ -70,6 +72,7 @@ services:
       - ./.env
     volumes:
       - ./backend:/app
+      - dem_data:/app/data/dem 
     entrypoint: /app/entrypoint.worker.sh
     depends_on:
       backend:
@@ -90,6 +93,7 @@ services:
       - ./.env
     volumes:
       - ./backend:/app
+      - dem_data:/app/data/dem
     entrypoint: /app/entrypoint.worker.sh
     command: celery -A core beat --loglevel=info
     depends_on:
@@ -158,6 +162,7 @@ volumes:
   db_data:
   minio_data:
   ollama_models:
+  dem_data:
 
 networks:
   default:
