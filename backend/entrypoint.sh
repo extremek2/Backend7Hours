@@ -1,42 +1,135 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
-echo "🚀 Starting container with DJANGO_ENV=${DJANGO_ENV:-dev}"
 
-# 1️⃣ DB 대기
-echo "⏳ Waiting for MySQL to be ready..."
-timeout=30
-counter=0
-until nc -z db 3306; do
+echo "🚀 Starting container setup..."
+echo "🔧 Environment loaded with DB_ENGINE=${DB_ENGINE}"
+
+# DB 엔진별 동적 변수 설정
+DB_PORT_VAR="DB_PORT_${DB_ENGINE}"
+DB_PKG_VAR="DB_PKG_${DB_ENGINE}"
+DB_REQS_VAR="DB_REQS_${DB_ENGINE}"
+DB_ENGINE_PATH_VAR="DB_ENGINE_${DB_ENGINE}"
+DB_VOLUME_PATH_VAR="DB_VOLUME_PATH_${DB_ENGINE}"
+
+export DB_PORT=${!DB_PORT_VAR}
+export DB_PKG=${!DB_PKG_VAR}
+export DB_REQS=${!DB_REQS_VAR}
+export DJANGO_DB_ENGINE=${!DB_ENGINE_PATH_VAR}
+export DB_VOLUME_PATH=${!DB_VOLUME_PATH_VAR}
+
+echo "📡 Using DB port: ${DB_PORT}"
+echo "📦 Installing system package for ${DB_ENGINE}: ${DB_PKG}"
+
+
+# 시스템 패키지 설치
+apt-get update -qq && apt-get install -y ${DB_PKG} && rm -rf /var/lib/apt/lists/*
+
+
+# Python 패키지 설치
+if [ -n "$DB_REQS" ]; then
+  echo "📘 Installing Python DB driver: ${DB_REQS}"
+  pip install --no-cache-dir ${DB_REQS}
+fi
+
+
+# DB 서비스 대기
+echo "⏳ Waiting for DB service at ${DB_HOST}:${DB_PORT}..."
+until nc -z ${DB_HOST} ${DB_PORT}; do
   sleep 1
-  counter=$((counter+1))
-  if [ $counter -ge $timeout ]; then
-    echo "❌ MySQL not ready after $timeout seconds"
-    exit 1
-  fi
 done
-echo "✅ MySQL is up!"
+echo "✅ DB is ready!"
 
-# 2️⃣ 마이그레이션
-echo "Applying database migrations..."
-python manage.py migrate --noinput
+# MinIO 서비스 대기 (서비스 이름: 'minio', 포트: 9000 사용)
+echo "⏳ Waiting for MinIO service at minio:9000..."
+# nc 명령어는 대부분의 Docker 이미지에 기본으로 설치되어 있지 않으므로, 
+# 만약 위의 DB 대기 로직이 작동한다면 이미 설치되어 있다는 의미입니다.
+until nc -z minio 9000; do
+  sleep 1
+done
+echo "✅ MinIO is ready!"
 
-# 3️⃣ 개발 환경일 때만 슈퍼유저 자동 생성
-if [ "$DJANGO_ENV" != "prod" ]; then
-  echo "👤 Creating superuser if not exists..."
-  python manage.py shell <<EOF
+# MC CLIENT 별칭 변수 지정
+ALIAS_NAME=$MINIO_CLIENT_ALIAS 
+
+# MinIO 초기 설정 (Alias 설정 및 버킷 생성)
+echo "⚙️ Setting up MinIO aliases and buckets..."
+# Alias 설정 시, 서비스 이름 'minio'와 .env에서 읽어온 환경 변수 사용
+mc alias set $ALIAS_NAME $MINIO_ENDPOINT_URL $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+
+# 버킷 리스트 정의
+BUCKETS=(
+  $MINIO_USERS_BUCKET
+  $MINIO_PETS_BUCKET
+  $MINIO_PATHS_BUCKET
+  $MINIO_POSTS_BUCKET
+  $MINIO_PLACES_BUCKET
+)
+
+for BUCKET_NAME in "${BUCKETS[@]}"; do
+  echo "  -> Creating bucket: $BUCKET_NAME"
+  mc mb "$ALIAS_NAME/$BUCKET_NAME" || true
+done
+
+echo "✅ MinIO buckets created."
+# =============================================================
+
+# 마이그레이션 수행
+if [ "$RUN_MIGRATION" = "true" ]; then
+  echo "📚 Running Django migrations..."
+  python manage.py makemigrations users --noinput
+  python manage.py makemigrations --noinput
+  python manage.py migrate --noinput
+fi
+
+# 개발 환경에서 슈퍼유저 자동 생성
+if [ "$CREATE_SUPERUSER" = "true" ] && [ "$DJANGO_ENV" != "prod" ]; then
+  echo "👤 Ensuring superuser exists..."
+
+  python manage.py shell <<'EOF'
 from django.contrib.auth import get_user_model
+import os
+
 User = get_user_model()
-if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@example.com', 'admin1234')
+username_field = getattr(User, 'USERNAME_FIELD', None)  # None일 수도 있음
+email_env = os.getenv('DJANGO_SUPERUSER_EMAIL')
+password_env = os.getenv('DJANGO_SUPERUSER_PASSWORD')
+username_env = os.getenv('DJANGO_SUPERUSER_USERNAME')
+
+# 슈퍼유저 조회 조건
+lookup = {}
+if username_field:
+    lookup[username_field] = username_env
+else:
+    # username 필드가 없으면 email로 조회
+    lookup['email'] = email_env
+
+u = User.objects.filter(**lookup).first()
+
+if u:
+    if not u.check_password(password_env):
+        u.set_password(password_env)
+        u.save()
+        print("🔑 Superuser password updated")
+    else:
+        print("ℹ️ Superuser already exists")
+else:
+    create_args = {
+        'email': email_env,
+        'password': password_env
+    }
+    if username_field:
+        create_args[username_field] = username_env
+    User.objects.create_superuser(**create_args)
+    print("🆕 Superuser created")
 EOF
 fi
 
-# 4️⃣ 서버 실행
+# 서버 실행
 if [ "$DJANGO_ENV" = "prod" ]; then
   echo "🔥 Starting Gunicorn (Production)"
-  exec gunicorn core.wsgi:application --bind 0.0.0.0:8000
+  exec gunicorn core.wsgi:application --bind 0.0.0.0:${DJANGO_PORT}
 else
   echo "💻 Starting Django Development Server"
-  exec python manage.py runserver 0.0.0.0:8000
+  exec python manage.py runserver 0.0.0.0:${DJANGO_PORT}
 fi

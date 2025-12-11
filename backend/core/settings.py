@@ -11,8 +11,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-import os
+import os, json
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,12 +35,45 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
+    'apps.webrtc', # WebRTC 시그널링 앱
+    
+    # 프로젝트용 추가 앱
+    'core',
+    'apps.users',
+    'apps.pets',
+    'apps.places',
+    'apps.paths',
+    'apps.posts',
+    'storages',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
+    
+    # DRF 등 추가 앱
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'drf_yasg',
+    
+    # ------------------------------------------------
+    # [추가] 소셜 로그인 및 JWT 관련 앱
+    # ------------------------------------------------
+    'rest_framework.authtoken', # dj-rest-auth 사용 시 필수
+    'rest_framework_simplejwt.token_blacklist',
+    'dj_rest_auth',             # 소셜 로그인 API 처리
+    'django.contrib.sites',     # allauth가 의존
+
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.kakao', # 카카오 제공자
+    'dj_rest_auth.registration', # 소셜 가입 처리
 ]
 
 MIDDLEWARE = [
@@ -50,6 +84,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    # [추가] allauth 미들웨어 (최신 버전 필수)
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -71,36 +108,98 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
+# 토큰 인증 + 권한 설정 + 날짜 형식
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  # IsAuthenticated, AllowAny
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
+    'DATETIME_FORMAT': "%Y-%m-%d %H:%M:%S" # 기본 날짜 형식 (밀리초 제거)
+    
+}
+
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 
 # manage.py와 같은 위치에 있는 .env.dev를 로드
-load_dotenv(os.path.join(BASE_DIR, '.env.dev'))
+load_dotenv(BASE_DIR.parent / '.env')
+
+# 1. JWT 사용 설정
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'my-app-auth', # (선택) 쿠키에 저장할 이름
+    'JWT_AUTH_REFRESH_COOKIE': 'my-app-refresh-token', # (선택)
+    'JWT_AUTH_HTTPONLY': False, # 앱에서 토큰을 읽어야 하므로 False (보안 정책에 따라 True)
+}
+
+# SIMPLE_JWT = {
+#     "ACCESS_TOKEN_LIFETIME": timedelta(days=5),
+#     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+#     "ROTATE_REFRESH_TOKENS": True,
+#     "BLACKLIST_AFTER_ROTATION": True,
+#     "ALGORITHM": "HS256",
+#     "SIGNING_KEY": SECRET_KEY,
+# }
+
+# 2. 유저 인증 방식 (이메일 vs 유저네임)
+# 안드로이드 앱 요구사항: "이메일 -> 유저네임 변경" 관련
+# 카카오 계정의 이메일을 고유 ID로 사용하도록 설정합니다.
+
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None # 커스텀 유저 모델에서 username 필드를 안 쓴다면 None
+ACCOUNT_EMAIL_REQUIRED = True            # 이메일 필수
+ACCOUNT_USERNAME_REQUIRED = False        # 유저네임(ID) 입력 불필요
+ACCOUNT_AUTHENTICATION_METHOD = 'email'  # 로그인 시 이메일 사용
+ACCOUNT_EMAIL_VERIFICATION = 'none'      # 이메일 인증 메일 발송 안 함 (소셜은 이미 인증됨)
+ACCOUNT_UNIQUE_EMAIL = True              # 이메일 중복 방지
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none' # (추가 권장)
+SOCIALACCOUNT_ADAPTER = 'apps.users.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+# 3. 어댑터 설정 (필요시 커스텀 어댑터 사용, 기본값 사용 시 생략 가능)
+# ACCOUNT_ADAPTER = 'apps.users.adapters.CustomAccountAdapter' 
+
+# [추가] allauth 인증 백엔드 설정
+AUTHENTICATION_BACKENDS = [
+    # Django 기본 관리자 페이지 로그인용
+    'django.contrib.auth.backends.ModelBackend',
+    # allauth 소셜 로그인용
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# sites framework 활성화
+SITE_ID = 1
+
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
+    "default": {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': 'db',  # docker-compose 서비스 이름('db'-> 컨테이너 내부용)
-        'PORT': os.environ.get('MYSQL_PORT_LOCAL'),  # 현재 DB와는 컨테이너 내부 통신이므로 LOCAL PORT 사용
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', 5432),
     }
-    
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # }
 }
+
+
 
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+
+# AbstactUser 로 모델 확장
+AUTH_USER_MODEL = "users.CustomUser"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -139,3 +238,126 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# --- Minio (S3) Storage Settings ---
+
+# 1. 스토리지 백엔드
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# 2. Minio 서버 접속 정보 (Docker Compose 기준)
+AWS_ACCESS_KEY_ID = os.environ.get('MINIO_ROOT_USER')
+AWS_SECRET_ACCESS_KEY = os.environ.get('MINIO_ROOT_PASSWORD')
+
+# 3. Minio 버킷 정보
+AWS_STORAGE_BUCKET_NAME = os.environ.get('MINIO_USERS_BUCKET', 'users') # Minio에서 생성한 버킷 이름 (우선은 users 기본 사용)
+
+# 4. Minio 서버 주소 (Docker 내부 통신)
+AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT_URL', 'http://127.0.0.1:9000')
+
+# 5. 기타 설정
+AWS_LOCATION = os.environ.get('AWS_LOCATION', 'media') # 각 버킷 내에서 /media/ 폴더 안에 저장
+
+AWS_S3_SCHEME = os.environ.get('AWS_S3_SCHEME', 'http')
+AWS_S3_SECURE_URLS = os.environ.get("AWS_S3_SECURE_URLS", "False").lower() == "true"  # Docker 내부 HTTP 통신
+
+AWS_S3_SIGNATURE_VERSION = os.environ.get('AWS_S3_SIGNATURE_VERSION', 's3v4')
+
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+AWS_QUERYSTRING_AUTH = False
+
+# CELERY 설정
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = int(os.getenv('CELERY_TASK_TIME_LIMIT', '300'))
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Seoul'
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+
+MINIO_ENDPOINT = "localhost:9000"  # (예: minio.example.com)
+# MINIO_ACCESS_KEY = "minioadmin"        # (예: "minioadmin")
+# MINIO_SECRET_KEY = "minioadminpassword"        # (예: "minioadmin")
+# MINIO_BUCKET_NAME = "paths-"      # (예: "paths")
+# MINIO_SECURE = True
+
+# PATH Thumbnail 저장소
+MINIO_PATHS_BUCKET_NAME = os.environ.get('MINIO_PATHS_BUCKET')
+
+SIMPLE_JWT = {
+    # 액세스 토큰 수명을 60분으로 늘림 (기본값 5분은 테스트하기 너무 짧음)
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=5),
+    
+    # 리프레시 토큰 수명
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    
+    # [핵심] 헤더 타입을 'Bearer'로 확실하게 지정
+    'AUTH_HEADER_TYPES': ('Bearer',), 
+    
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    
+    # 서명 키 (settings.SECRET_KEY와 일치해야 함)
+    'SIGNING_KEY': SECRET_KEY,
+    'ALGORITHM': 'HS256',
+    
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
+
+# --- Channels (WebRTC 시그널링용) ---
+ASGI_APPLICATION = 'core.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.environ.get('REDIS_HOST', 'redis'), 6379)],
+        },
+    },
+}
+
+# 경로 썸네일용
+# 1. 렌더링 엔진 선택 (주 제어 변수)
+# 'NAVER' 또는 'MATPLOTLIB' 중 하나를 선택하여 썸네일 생성 방식을 제어합니다.
+PATH_RENDER_ENGINE = 'CONTEXTILY' 
+
+# 2. 썸네일 렌더링에 필요한 모든 설정 통합 (중앙 집중식 딕셔너리)
+THUMBNAIL_RENDER_CONFIG = {
+    # ----------------------------------------------------
+    # 공통 설정 (두 엔진 모두 사용)
+    # ----------------------------------------------------
+    'IMAGE_WIDTH': int(os.getenv('THUMBNAIL_IMAGE_WIDTH', 800)),         # 최종 이미지 가로 픽셀
+    'IMAGE_HEIGHT': int(os.getenv('THUMBNAIL_IMAGE_HEIGHT', 800)),       # 최종 이미지 세로 픽셀
+    'LINE_COLOR': os.getenv('THUMBNAIL_LINE_COLOR', '0xff0000ff'),   # 경로 선 색상
+    'LINE_COLOR_HEX': os.getenv('THUMBNAIL_LINE_COLOR_HEX', '#FF0000'),   # 경로 선 색상(HEX)
+    'LINE_WIDTH': int(os.getenv('THUMBNAIL_LINE_WIDTH', 3)),
+    
+    # ----------------------------------------------------
+    # CONTEXTILY 전용 설정 (Mapbox, OSM 등 Contextily 관련 설정)
+    # ----------------------------------------------------
+    'CONTEXTILY': {
+        'DPI': int(os.getenv('CONTEXTILY_DPI', 100)),
+        # 지도 표시 범위 조정에 사용되는 추가 상수
+        'MIN_MAP_EXTENT': int(os.getenv('CONTEXTILY_MIN_MAP_EXTENT', 2000)), # 미터 단위
+        'PADDING_RATIO': float(os.getenv('CONTEXTILY_PADDING_RATIO', '0.2')), # 0.2 = 20%
+    },
+    
+    # ----------------------------------------------------
+    # NAVER Static Map 전용 설정 (CONTEXTILY 사용 시 무시됨)
+    # ----------------------------------------------------
+    'NAVER': {
+        'API_URL': os.getenv(
+            'NAVER_API_URL',
+            'https://maps.apigw.ntruss.com/map-static/v2/raster'
+        ),
+        'CLIENT_ID': os.getenv('NAVER_CLIENT_ID','l9rv1pftio'),
+        'CLIENT_SECRET': os.getenv('NAVER_CLIENT_SECRET','l1F0BgARq9B0OwXENwJsdviRL2zADSbpHV3qhEWr'),
+        'MAP_TYPE': os.getenv('NAVER_MAP_TYPE', 'terrain'), 
+        'SCALE': int(os.getenv('NAVER_MAP_SCALE', '2')),
+    }
+}
