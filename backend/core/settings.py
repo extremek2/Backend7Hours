@@ -380,3 +380,6 @@ THUMBNAIL_RENDER_CONFIG = {
         'SCALE': int(os.getenv('NAVER_MAP_SCALE', '2')),
     }
 }
+
+# ai diary server
+AI_DIARY_SERVER_URL = "http://diary_server:8002"

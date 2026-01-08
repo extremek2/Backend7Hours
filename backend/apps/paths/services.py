@@ -9,6 +9,7 @@ from urllib.parse import unquote
 from geopy.distance import distance as geopy_distance
 from polyline import encode as polyline_encode
 from .utils import GisUtils
+from .tasks import generate_path_diary
 
 User = get_user_model() # 런타임에서 CustomUser 클래스 반환
 
@@ -110,7 +111,8 @@ class PathService:
                         thumbnail=None, is_private=None, polyline=None, markers=None):
         from .tasks import (
             calculate_path_metrics_and_update, 
-            render_path_and_upload
+            render_path_and_upload,
+            generate_path_diary
         )
         
         """사용자가 보낸 좌표를 저장 (JSON 객체, 서버에서 z값 채움)"""
@@ -152,7 +154,10 @@ class PathService:
             # [CELERY_Task] 썸네일 생성
             if geom: 
                 render_path_and_upload.delay(path.id)
-        
+            
+            # 다이어리 생성
+            generate_path_diary.delay(path.id)
+
         transaction.on_commit(schedule_tasks)
         
         return path

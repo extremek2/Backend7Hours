@@ -44,12 +44,17 @@ class Path(BaseModel):
     # ✅ 추가: 안드로이드 전송용 필드
     polyline = models.TextField(null=True, blank=True)  # 인코딩된 좌표 문자열
     markers = models.JSONField(null=True, blank=True)         # 마커 배열 (리스트 안의 리스트)
+    # AI 다이어리 관련 필드 추가
+    ai_summary = models.TextField(null=True, blank=True)
+    ai_generated = models.BooleanField(default=False)
+
 
     # 댓글 역참조 설정
     comments = GenericRelation(Comment, related_query_name='path')
     
     # 즐겨찾기 역참조 설정
     bookmarks = GenericRelation(Bookmark, related_query_name='path')
+
 
     def __str__(self):
         email = self.auth_user.email if self.auth_user else 'N/A'

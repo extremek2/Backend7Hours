@@ -24,6 +24,11 @@ comment_detail = views.CommentViewSet.as_view({
     'delete': 'destroy'
 })
 
+# DiaryView (path 다이어리 엔드포인트)
+diary_detail = views.PathViewSet.as_view({
+    'get': 'get_diary'   # PathViewSet에서 @action(detail=True)으로 구현
+})
+
 urlpatterns = [
     # 라우터가 생성하는 URL들을 포함
     # 예: /paths/, /paths/{pk}/, /paths/mine/, /paths/{pk}/bookmark/
@@ -32,4 +37,8 @@ urlpatterns = [
     # 댓글 관련 URL 수동 등록
     path('<int:id>/comments/', comment_list, name='path-comment-list'),
     path('<int:id>/comments/<int:pk>/', comment_detail, name='path-comment-detail'),
+    
+    # Path 다이어리 URL
+    path('<int:pk>/diary/', diary_detail, name='path-diary-detail'),
+    
 ]

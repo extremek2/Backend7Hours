@@ -11,6 +11,7 @@ app = FastAPI()
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
 
 class Diary(BaseModel):
+    pathId: int
     distance: float
     duration: int
     pathName: str

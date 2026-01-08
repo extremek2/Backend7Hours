@@ -1,5 +1,6 @@
 import io
 import logging
+import requests
 
 from functools import lru_cache
 from celery import shared_task
@@ -184,4 +185,42 @@ def calculate_path_metrics_and_update(path_id):
         return {"status": "failed", "reason": f"Path {path_id} not found."}
     except Exception as e:
         logger.error(f"[Metrics] Calculation failed for Path {path_id}: {e}", exc_info=True)
+        raise
+    
+@shared_task
+def generate_path_diary(path_id):
+    try:
+        path = Path.objects.get(id=path_id)
+
+        # 요청 데이터 (클라이언트 DTO 그대로 사용 가능)
+        payload = {
+            "pathId": path.id,
+            "distance": path.distance or 0,
+            "duration": path.duration or 0,
+            "pathName": path.path_name,
+        }
+
+        res = requests.post(
+            f"{settings.AI_DIARY_SERVER_URL}/generate-diary",
+            json=payload,
+            timeout=300,
+        )
+        res.raise_for_status()
+
+        diary = res.json().get("diary")
+        if not diary:
+                raise ValueError("Diary generation failed, empty response")
+
+        Path.objects.filter(id=path_id).update(
+            ai_summary=diary,
+            ai_generated=True,
+        )
+    except Path.DoesNotExist:
+        # 로그 남기거나 처리
+        print(f"Path {path_id} does not exist")
+    except Exception as e:
+        logger.error(
+            f"Error generating diary for Path {path_id}: {e}",
+            exc_info=True
+        )
         raise

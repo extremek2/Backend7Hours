@@ -217,6 +217,27 @@ class PathViewSet(viewsets.ModelViewSet):
             if deleted_count > 0:
                 return Response(status=status.HTTP_204_NO_CONTENT)
             return Response({'status': 'bookmark not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+    # -------------------------------
+    # Path 다이어리 조회용 @action
+    # -------------------------------
+    @action(detail=True, methods=['get'], url_path='diary')
+    def get_diary(self, request, pk=None):
+        """
+        GET /paths/{id}/diary/
+        특정 Path의 AI 다이어리를 조회
+        """
+        try:
+            path = self.get_object()  # pk 기반으로 Path 조회
+        except Path.DoesNotExist:
+            return Response({"detail": "Path not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if path.ai_generated and path.ai_summary:
+            # 이미 생성된 다이어리가 있는 경우
+            return Response({"diary": path.ai_summary}, status=status.HTTP_200_OK)
+        else:
+            # 다이어리가 없는 경우
+            return Response({"diary": None}, status=status.HTTP_200_OK)
 
 
 class CommentViewSet(viewsets.ModelViewSet):

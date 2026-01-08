@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import Pet, PetBreed, PetEvent, PetCheckup, InvitationCode, PetLocation
+from .models import Pet, PetBreed, PetEvent, PetCheckup, InvitationCode, PetLocation, PetTrail
+from apps.pets.trail_diary_service import TrailDiaryService
 
 # pet_breed
 class PetBreedSerializer(serializers.ModelSerializer):
@@ -95,7 +96,28 @@ class PetCheckupSerializer(serializers.ModelSerializer):
         # read_only_fields에 'id'와 'event'를 명시적으로 추가하여 외부 쓰기 차단
         read_only_fields = ['id', 'event', 'created_at', 'pet_name', 'event_date', 'due_date']
         
-        
+    
+# pet_trail    
+class PetTrailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PetTrail
+        fields = [
+            'id',
+            'path_id',
+            'path_name',
+            'distance',
+            'duration',
+            'ai_summary',
+            'ai_generated',
+            'created_at',
+        ]
+        read_only_fields = [
+            'id',
+            'ai_summary',
+            'ai_generated',
+            'created_at',
+        ]
+            
 # pet_event
 class PetEventSerializer(serializers.ModelSerializer):
     pet_name = serializers.CharField(source='pet.name', read_only=True)
@@ -103,19 +125,45 @@ class PetEventSerializer(serializers.ModelSerializer):
     event_type_display = serializers.ReadOnlyField(source='get_event_type_display')
     # 관련 checkup 역참조
     checkup = PetCheckupSerializer(allow_null=True)
+    trail = PetTrailSerializer(allow_null=True)
     
     class Meta:
         model = PetEvent
         fields = [
             'id', 'pet_name', 'event_type_display',
-            'event_date', 'due_date', 'is_completed', 'created_at', 'updated_at', 'checkup'
+            'event_date', 'due_date', 'is_completed', 'created_at', 'updated_at', 'checkup', 'trail',
         ]
         read_only_fields = ['created_at', 'updated_at', 'pet_name', 'event_type_display']
+
+    def validate(self, data):
+        event_type = data.get('event_type')
+        checkup_data = data.get('checkup')
+        trail_data = data.get('trail')
+
+        if event_type == 'CHECKUP' and not checkup_data:
+            raise serializers.ValidationError({
+                'checkup': '이벤트 타입이 "건강검진"일 경우, 검진 상세 정보는 필수입니다.'
+            })
+        if event_type == 'TRAIL_DIARY' and not trail_data:
+            raise serializers.ValidationError({
+                'trail': '이벤트 타입이 "산책"일 경우, 산책 기록 정보는 필수입니다.'
+            })
+        return data
 
     @transaction.atomic # 원자적 트랜잭션으로 두 객체의 생성/실패를 보장
     def create(self, validated_data):
         # 1. checkup 데이터 분리 (존재할 경우)
-        checkup_data = validated_data.pop('checkup', None) 
+        checkup_data = validated_data.pop('checkup', None)
+        trail_data = validated_data.pop('trail', None) 
+        
+        event_type = validated_data.get('event_type')
+
+        # TRAIL 처리
+        if event_type == 'TRAIL_DIARY':
+            return TrailDiaryService.create(
+                event_data=validated_data,
+                trail_data=trail_data
+            )
         
         # 2. PetEvent 객체 생성 (부모)
         # 이 시점에 PetEventListCreateView의 perform_create에서 전달된 pet=request.user가 적용됨
@@ -124,19 +172,9 @@ class PetEventSerializer(serializers.ModelSerializer):
         # 3. checkup 데이터가 있고, 이벤트 타입이 'CHECKUP'인 경우에만 자식 객체 생성
         if checkup_data:
             PetCheckup.objects.create(event=pet_event, **checkup_data)
+            
         return pet_event
     
-    def validate(self, data):
-        # 1. checkup_data를 분리하지만, data에는 원본이 남아있음
-        checkup_data = data.get('checkup', None)
-        event_type = data.get('event_type')
-
-        # 2. 이벤트 타입이 'CHECKUP'인데 checkup 데이터가 없는지 검증
-        if event_type == 'CHECKUP' and not checkup_data:
-            raise serializers.ValidationError(
-                {'checkup': '이벤트 타입이 "건강검진"일 경우, 검진 상세 정보는 필수입니다.'}
-            )
-        return data
 
     def update(self, instance, validated_data):
         # 1. checkup 데이터 분리 (업데이트 시에도 처리 필요)

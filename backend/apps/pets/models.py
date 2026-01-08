@@ -195,11 +195,13 @@ class InvitationCode(BaseModel):
 CHECKUP = 'CHECKUP'
 VACCINE = 'VACCINE'
 FEED_PURCHASE = 'FEED_PURCHASE'
+TRAIL_DIARY = 'TRAIL_DIARY'
 
 EVENT_TYPE_CHOICES = [
     (CHECKUP, '건강검진'),
     (VACCINE, '예방접종'),
     (FEED_PURCHASE, '사료구매'),
+    (TRAIL_DIARY, '산책 다이어리'),
 ]
 class PetEvent(BaseScheduleModel):
     pet = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name='events')
@@ -234,3 +236,21 @@ class PetCheckup(BaseModel):
 
     def __str__(self):
         return f"{self.event.pet.name}의 검진 - {self.hospital_name}"
+    
+    
+class PetTrail(BaseModel):
+    event = models.OneToOneField(
+        PetEvent,
+        on_delete=models.CASCADE,
+        related_name='trail'
+    )
+
+   # 느슨한 참조
+    path_id = models.BigIntegerField(null=True, blank=True)
+    path_name = models.CharField(max_length=45, blank=True)
+
+    distance = models.FloatField(help_text="미터 단위")
+    duration = models.IntegerField(help_text="초 단위")
+
+    ai_summary = models.TextField(blank=True)
+    ai_generated = models.BooleanField(default=False)
