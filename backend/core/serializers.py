@@ -44,16 +44,9 @@ class BookmarkSerializer(serializers.ModelSerializer):
 
 # 댓글 작성자 정보 Serializer
 class AuthorSerializer(serializers.ModelSerializer):
-    profile_image_url = serializers.SerializerMethodField()
     class Meta:
         model = get_user_model()
-        fields = ['id', 'nickname', 'profile_image', 'profile_image_url']
-
-    def get_profile_image_url(self, obj):
-        """프로필 이미지의 Pre-signed URL 반환"""
-        if obj.profile_image:
-            return obj.get_profile_image_url()
-        return None
+        fields = ['id', 'nickname', 'profile_image']
         
 class CommentSerializer(serializers.ModelSerializer):
     """

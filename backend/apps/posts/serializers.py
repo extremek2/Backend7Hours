@@ -165,22 +165,16 @@ class PostListSerializer(RedisCountMixin, UserStatusMixin, serializers.ModelSeri
     is_liked = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
     
-    image_url = serializers.SerializerMethodField()
-
     class Meta:
         model = Post
         fields = [
             'id', 'auth_id', 'auth_name', 'auth_profile_image', 
-            'post_type', 'title', 'content', 'image', 'image_url',
+            'post_type', 'title', 'content', 'image',
             'view_count', 'comment_count', 'like_count', 'bookmark_count',
             'is_liked', 'is_bookmarked',
             'created_at', 'updated_at',
         ]
     
-    def get_image_url(self, obj):
-        """포스트 이미지의 Pre-signed URL 반환"""
-        return obj.get_image_url()
-        
     # ---- Redis 카운트 조회 메서드 ----
     def get_view_count(self, obj):
         """조회수 (Redis → DB Fallback)"""
@@ -293,12 +287,10 @@ class PostWriteSerializer(serializers.ModelSerializer):
     - 제목: 최소 2자
     - 내용: 최소 5자
     """
-
-    image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
-        fields = ['id', 'post_type', 'title', 'content', 'image', 'image_url']
+        fields = ['id', 'post_type', 'title', 'content', 'image']
     
     def validate_title(self, value):
         """제목 유효성 검사"""
@@ -313,7 +305,3 @@ class PostWriteSerializer(serializers.ModelSerializer):
         if len(cleaned) < 5:
             raise serializers.ValidationError("내용은 최소 5자 이상이어야 합니다.")
         return cleaned  # 공백 제거된 값 반환
-    
-    def get_image_url(self, obj):
-        """포스트 이미지의 Pre-signed URL 반환"""
-        return obj.get_image_url()
